@@ -6,12 +6,13 @@ import (
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	dosv1 "kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
 )
 
 type Snapshot struct {
 	client *kubesys.KubernetesClient
 	Nodes map[string]*v1.Node
-	GPUs map[string]*GPU
+	GPUs map[string]*dosv1.GPU
 }
 
 func NewSnapshot(client *kubesys.KubernetesClient) *Snapshot {

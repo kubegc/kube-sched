@@ -32,6 +32,8 @@ func (c *Controller) RunOnce() {
 
 	_ = NewSnapshot(c.client)
 
+
+
 	// 加env
 
 	// run pod
