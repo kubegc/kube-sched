@@ -29,7 +29,7 @@ spec:
     description: MEMORY CAPACITY
     name: memory capacity
     type: string
-  group: doslab.io.my.domain
+  group: doslab.io
   names:
     kind: GPU
     listKind: GPUList

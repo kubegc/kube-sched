@@ -16,6 +16,7 @@ func NewWorkQueueHandler(workqueue workqueue.RateLimitingInterface) *WorkQueueHa
 
 func (w *WorkQueueHandler) DoAdded(obj map[string]interface{}) {
 	jb, _ := json.Marshal(obj)
+	fmt.Println(string(jb))
 	w.workqueue.Add(string(jb))
 }
 

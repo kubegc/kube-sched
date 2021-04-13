@@ -19,5 +19,5 @@ func main() {
 	controller := scheduler.NewController(client, workqueue)
 	watcher := kubesys.NewKubernetesWatcher(client, scheduler.NewWorkQueueHandler(workqueue))
 	go controller.Run()
-	client.WatchResources("Pod", "default", watcher)
+	client.WatchResources("Task", "default", watcher)
 }

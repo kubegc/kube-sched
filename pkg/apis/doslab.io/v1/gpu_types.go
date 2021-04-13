@@ -80,3 +80,8 @@ type R struct {
 	Core   string `json:"core,omitempty"`
 	Memory int    `json:"memory,omitempty"`
 }
+
+
+func init() {
+	SchemeBuilder.Register(&GPU{}, &GPUList{})
+}
