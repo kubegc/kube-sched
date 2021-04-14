@@ -1,10 +1,15 @@
 package scheduler
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
+	dosv1 "kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
+	"kubesys.io/dl-scheduler/pkg/scheduler/algorithm"
+	"kubesys.io/dl-scheduler/pkg/scheduler/snapshot"
 	"time"
 )
 
@@ -27,12 +32,37 @@ func (c *Controller) Run() {
 
 
 func (c *Controller) RunOnce() {
-	//timer := time.NewTimer(3 * time.Second)
-	//tasks := make(map[string]interface{})
+	tasks := make([]*dosv1.Task, 0)
+	timer := time.NewTimer(1 * time.Second)
+	run := func() {
+		select {
+		case <-timer.C:
+			return
+		default:
+			for {
+				if c.workqueue.Len() == 0 {
+					return
+				}
+				taskObj, shutdown := c.workqueue.Get()
+				if shutdown {
+					log.Errorf("queue shutdown")
+				}
+				task := &dosv1.Task{}
+				taskByte := taskObj.(string)
+				err := json.Unmarshal([]byte(taskByte), &task)
+				if err != nil {
+					log.Errorf("error unmarshal to task")
+				}
+				tasks = append(tasks, task)
+			}
+		}
+	}
+	run()
 
-	_ = NewSnapshot(c.client)
-
-
+	_ = snapshot.NewSnapshot(c.client)
+	snapshot := snapshot.MockSnapshot(c.client)
+	alg := algorithm.GetBatchScheduleAlgorithm("batch_fair")
+	alg.Schedule(tasks, snapshot)
 
 	// 加env
 

@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20210412222843-d2e8de5a7ca2
+	github.com/google/uuid v1.1.2
 	github.com/kubesys/kubernetes-client-go v0.0.0-20210412025431-29031f2cac5f
 	github.com/sirupsen/logrus v1.8.1
 	k8s.io/api v0.20.2

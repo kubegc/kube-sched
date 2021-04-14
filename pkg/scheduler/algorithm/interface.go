@@ -2,7 +2,7 @@ package algorithm
 
 import (
 	doslabv1 "kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
-	"kubesys.io/dl-scheduler/pkg/scheduler"
+	"kubesys.io/dl-scheduler/pkg/scheduler/snapshot"
 )
 
 type ScheduleResult struct {
@@ -13,14 +13,16 @@ type ScheduleAlgorithm interface {
 	Name() string
 }
 
+
 type SingleScheduleAlgorithm interface {
 	ScheduleAlgorithm
-	Schedule(task *doslabv1.Task, snapshot *scheduler.Snapshot) ScheduleResult
+	Schedule(task *doslabv1.Task, snapshot *snapshot.Snapshot) ScheduleResult
 }
 
 type BatchScheduleAlgorithm interface {
 	ScheduleAlgorithm
-	Schedule(tasks []*doslabv1.Task, snapshot *scheduler.Snapshot) map[*doslabv1.Task]ScheduleResult
+	Schedule(tasks []*doslabv1.Task, snapshot *snapshot.Snapshot) map[string]ScheduleResult
 }
+
 
 
