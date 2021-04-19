@@ -13,11 +13,11 @@ type BatchTradeScheduleAlgorithm struct {
 }
 
 
-func (fb *BatchTradeScheduleAlgorithm) Name() string {
+func (bt *BatchTradeScheduleAlgorithm) Name() string {
 	return "batch_trade"
 }
 
-func (fb *BatchTradeScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, snapshot *snapshot.Snapshot) map[string]ScheduleResult {
+func (bt *BatchTradeScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, snapshot *snapshot.Snapshot) map[string]ScheduleResult {
 	numTask := len(tasks)
 	if numTask == 0 {
 		return nil
@@ -63,22 +63,20 @@ func (fb *BatchTradeScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, snapshot
 			fairThroughput[taskName] += float64(num) * speedups[taskName][model]
 		}
 	}
+	fmt.Println(fairNum)
 	fmt.Println(fairThroughput)
 	trader := GetName(tasks[0])
 	tradee := GetName(tasks[len(tasks) - 1])
 	price := int(GetSpeedup(tasks[len(tasks) - 2]))
 
 	tradeCount := Min(fairNum[trader]["Tesla K80"] / price, fairNum[tradee]["Tesla V100"])
-	fmt.Println(tradeCount)
+	// fmt.Println(tradeCount)
 	// trader
 	tradeNum[trader]["Tesla K80"] -= tradeCount * price
 	tradeNum[trader]["Tesla V100"] += tradeCount
 	//tradee
 	tradeNum[tradee]["Tesla K80"] += tradeCount * price
 	tradeNum[tradee]["Tesla V100"] -= tradeCount
-
-	fmt.Println(tradeNum)
-	
 	for _, task := range tasks {
 		taskName := GetName(task)
 		tradeThroughput[taskName] = 0.0
@@ -86,6 +84,7 @@ func (fb *BatchTradeScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, snapshot
 			tradeThroughput[taskName] += float64(num) * speedups[taskName][model]
 		}
 	}
+	fmt.Println(tradeNum)
 	fmt.Println(tradeThroughput)
 	return nil
 

@@ -63,7 +63,7 @@ func (c *Controller) RunOnce() {
 	}
 	_ = snapshot.NewSnapshot(c.client)
 	snapshot := snapshot.MockSnapshot(c.client)
-	alg := algorithm.GetBatchScheduleAlgorithm("batch_trade")
+	alg := algorithm.GetBatchScheduleAlgorithm("batch_max_throughput")
 	result := alg.Schedule(tasks, snapshot)
 	fmt.Println(result)
 	// 加env
