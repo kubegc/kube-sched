@@ -6,6 +6,7 @@ import (
 )
 
 type ScheduleResult struct {
+	gpuCount map[string]int
 	gpuId []string
 	nodeName string
 }

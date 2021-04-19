@@ -58,12 +58,14 @@ func (c *Controller) RunOnce() {
 		}
 	}
 	run()
-
+	if len(tasks) == 0 {
+		return
+	}
 	_ = snapshot.NewSnapshot(c.client)
 	snapshot := snapshot.MockSnapshot(c.client)
-	alg := algorithm.GetBatchScheduleAlgorithm("batch_fair")
-	alg.Schedule(tasks, snapshot)
-
+	alg := algorithm.GetBatchScheduleAlgorithm("batch_trade")
+	result := alg.Schedule(tasks, snapshot)
+	fmt.Println(result)
 	// 加env
 
 	// run pod

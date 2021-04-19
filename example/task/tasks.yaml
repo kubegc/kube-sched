@@ -2,6 +2,8 @@ apiVersion: doslab.io/v1
 kind: Task
 metadata:
   name: task1
+  annotations:
+    speedup: "1.25"
 spec: # PodSpec
   containers:
     - name: torch
@@ -20,6 +22,8 @@ apiVersion: doslab.io/v1
 kind: Task
 metadata:
   name: task2
+  annotations:
+    speedup: "5.0"
 spec: # PodSpec
   containers:
     - name: torch
@@ -38,6 +42,8 @@ apiVersion: doslab.io/v1
 kind: Task
 metadata:
   name: task3
+  annotations:
+    speedup: "6.25"
 spec: # PodSpec
   containers:
     - name: torch

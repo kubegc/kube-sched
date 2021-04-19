@@ -49,7 +49,7 @@ func MockSnapshot(client *kubesys.KubernetesClient) *Snapshot {
 				Name: fmt.Sprintf("%s-gpu-%d", "dell04", i),
 			},
 			Spec: dosv1.GPUSpec{
-				UUID:   "gpu-" + uuid.New().String(),
+				UUID:   "GPU-" + uuid.New().String(),
 				Model:  "Tesla K80",
 				Family: "Turing",
 				Capacity: dosv1.R{
@@ -77,7 +77,7 @@ func MockSnapshot(client *kubesys.KubernetesClient) *Snapshot {
 				Name: fmt.Sprintf("%s-gpu-%d", "dell04", i),
 			},
 			Spec: dosv1.GPUSpec{
-				UUID:   "gpu-" + uuid.New().String(),
+				UUID:   "GPU-" + uuid.New().String(),
 				Model:  "Tesla V100",
 				Family: "Turing",
 				Capacity: dosv1.R{
