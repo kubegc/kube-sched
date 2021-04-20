@@ -22,11 +22,11 @@ func (bt *BatchThroughputScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, sna
 	if numTask == 0 {
 		return nil
 	}
-	models := make([]string, 0)
+	gpuModels := make(map[string]bool)
 	gpuNum := make(map[string]int)
 	for _, gpu := range snapshot.GPUs {
 		gpuNum[gpu.Spec.Model]++
-		models = append(models, gpu.Spec.Model)
+		gpuModels[gpu.Spec.Model] = true
 	}
 	// task -> speedups
 
@@ -37,7 +37,6 @@ func (bt *BatchThroughputScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, sna
 
 	fairThroughput := make(map[string]float64)
 	actualThroughput := make(map[string]float64)
-
 
 	for _, task := range tasks {
 		taskName := GetName(task)
@@ -64,10 +63,11 @@ func (bt *BatchThroughputScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, sna
 	})
 	victims := tasks[:len(tasks) - 1]
 	victor := tasks[len(tasks) - 1]
+
 	for _, task := range victims {
 		taskName := GetName(task)
 		models := make([]string, 0)
-		for gpuModel, _ := range gpuNum {
+		for gpuModel, _ := range gpuModels {
 			models = append(models, gpuModel)
 		}
 		sort.Slice(models, func(i, j int) bool {
@@ -97,17 +97,20 @@ func (bt *BatchThroughputScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, sna
 			}
 		}
 	}
+
 	victorName := GetName(victor)
-	for _, model := range models {
+	for model, _ := range gpuModels {
 		if actualNum[victorName] == nil {
 			actualNum[victorName] = make(map[string]int)
 		}
 		actualNum[victorName][model] = gpuNum[model]
 		actualThroughput[victorName] += float64(gpuNum[model]) * speedups[victorName][model]
-		gpuNum[model] = 0
+		//gpuNum[model] = 0
 	}
+	fmt.Println("------Schedule Result------")
 	fmt.Println(actualNum)
+	fmt.Println("------Throughput------")
 	fmt.Println(actualThroughput)
-	fmt.Println(gpuNum)
+	//fmt.Println(gpuNum)
 	return nil
 }
