@@ -83,7 +83,6 @@ func (c *Controller) RunOnce() {
 			fmt.Println(err)
 		}
 	}
-	// run pod
 
 }
 func (c *Controller) ProcessNextItem() bool {

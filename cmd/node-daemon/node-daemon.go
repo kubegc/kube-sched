@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
-	node_daemon "kubesys.io/dl-scheduler/pkg/node-daemon"
+	"kubesys.io/dl-scheduler/pkg/node-daemon/handler"
 )
 var (
 	masterURL = "https://133.133.135.42:6443"
@@ -12,6 +12,10 @@ var (
 func main() {
 	client := kubesys.NewKubernetesClient(masterURL, token)
 	client.Init()
-	watcher := kubesys.NewKubernetesWatcher(client, node_daemon.NewPrintHandler())
-	client.WatchResource("Pod", "default", "busybox1", watcher)
+	watcher := kubesys.NewKubernetesWatcher(client, handler.NewTaskHandler(client))
+	stopCh := make(chan struct{})
+	//go client.WatchResources("Pod", "default", watcher)
+	go client.WatchResources("Task", "default", watcher)
+	<-stopCh
+
 }
