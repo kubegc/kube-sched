@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
-	"kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	log "github.com/sirupsen/logrus"
-	"os"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
+	"os"
 )
 
 

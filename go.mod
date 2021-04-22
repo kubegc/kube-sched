@@ -5,7 +5,6 @@ go 1.15
 require (
 	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20210412222843-d2e8de5a7ca2
 	github.com/google/uuid v1.1.2
-	github.com/kr/pretty v0.2.0
 	github.com/kubesys/kubernetes-client-go v0.0.0-20210412025431-29031f2cac5f
 	github.com/sirupsen/logrus v1.8.1
 	k8s.io/api v0.20.2
@@ -16,8 +15,6 @@ require (
 
 replace (
 	k8s.io/api => k8s.io/api v0.20.2
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.2
-	k8s.io/apimachinery => k8s.io/apimachinery v0.20.2
 	k8s.io/client-go => k8s.io/client-go v0.20.2
 	k8s.io/kubernetes => k8s.io/kubernetes v0.20.2
 )

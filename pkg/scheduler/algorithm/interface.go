@@ -6,9 +6,9 @@ import (
 )
 
 type ScheduleResult struct {
-	gpuCount map[string]int
-	gpuId []string
-	nodeName string
+	GpuCount map[string]int
+	GpuId []string
+	NodeName string
 }
 type ScheduleAlgorithm interface {
 	Name() string

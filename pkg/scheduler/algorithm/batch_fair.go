@@ -37,11 +37,11 @@ func (bf *BatchFairScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, snapshot 
 
 	for _, task := range tasks {
 		taskGPUResult := scheduleResult[task.Namespace + "/" + task.Name]
-		if taskGPUResult.gpuCount == nil {
-			taskGPUResult.gpuCount = make(map[string]int)
+		if taskGPUResult.GpuCount == nil {
+			taskGPUResult.GpuCount = make(map[string]int)
 		}
 		for model, num := range fairNum {
-			taskGPUResult.gpuCount[model] = num
+			taskGPUResult.GpuCount[model] = num
 		}
 	}
 	return scheduleResult

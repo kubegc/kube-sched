@@ -32,7 +32,7 @@ func NewSnapshot(client *kubesys.KubernetesClient) *Snapshot {
 	}
 	var nodelist v1.NodeList
 	err = json.Unmarshal(jb, &nodelist)
-	fmt.Println(nodelist.Items[0].GetName())
+	// fmt.Println(nodelist.Items[0].GetName())
 	return snapshot
 }
 

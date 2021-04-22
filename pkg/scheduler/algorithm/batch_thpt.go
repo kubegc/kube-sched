@@ -8,9 +8,7 @@ import (
 	"sort"
 )
 
-type BatchThroughputScheduleAlgorithm struct {
-
-}
+type BatchThroughputScheduleAlgorithm struct {}
 
 
 func (bt *BatchThroughputScheduleAlgorithm) Name() string {
@@ -105,12 +103,12 @@ func (bt *BatchThroughputScheduleAlgorithm) Schedule(tasks []*doslabv1.Task, sna
 		}
 		actualNum[victorName][model] = gpuNum[model]
 		actualThroughput[victorName] += float64(gpuNum[model]) * speedups[victorName][model]
-		//gpuNum[model] = 0
+		gpuNum[model] = 0
 	}
 	fmt.Println("------Schedule Result------")
 	fmt.Println(actualNum)
 	fmt.Println("------Throughput------")
 	fmt.Println(actualThroughput)
-	//fmt.Println(gpuNum)
+	fmt.Println(gpuNum)
 	return nil
 }
