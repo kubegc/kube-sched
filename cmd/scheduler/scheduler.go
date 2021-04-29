@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
-	"k8s.io/client-go/util/workqueue"
 	"kubesys.io/dl-scheduler/pkg/scheduler"
 )
 
@@ -14,10 +13,8 @@ var (
 func main() {
 	client := kubesys.NewKubernetesClient(masterURL, token)
 	client.Init()
-
-	workqueue :=  workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "SharePods")
-	controller := scheduler.NewController(client, workqueue)
-	watcher := kubesys.NewKubernetesWatcher(client, scheduler.NewWorkQueueHandler(workqueue))
+	controller := scheduler.NewController(client)
+	watcher := kubesys.NewKubernetesWatcher(client, scheduler.NewWorkQueueHandler(controller.Workqueue))
 	go controller.Run()
 	client.WatchResources("Task", "default", watcher)
 }

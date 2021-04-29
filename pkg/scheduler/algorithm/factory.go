@@ -7,6 +7,7 @@ func init() {
 	RegisterBatch(&BatchFairScheduleAlgorithm{})
 	RegisterBatch(&BatchTradeScheduleAlgorithm{})
 	RegisterBatch(&BatchThroughputScheduleAlgorithm{})
+
 }
 
 func RegisterSingle(algorithm SingleScheduleAlgorithm) {

@@ -15,17 +15,16 @@ import (
 )
 
 type Controller struct {
-	client *kubesys.KubernetesClient
-	workqueue workqueue.RateLimitingInterface
+	Client *kubesys.KubernetesClient
+	Workqueue workqueue.RateLimitingInterface
 }
 
-func NewController(client *kubesys.KubernetesClient, workqueue workqueue.RateLimitingInterface) *Controller {
+func NewController(client *kubesys.KubernetesClient) *Controller {
 	return &Controller{
-		client: client,
-		workqueue: workqueue,
+		Client: client,
+		Workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "tasks"),
 	}
 }
-
 
 func (c *Controller) Run() {
 	wait.Until(c.RunOnce, time.Second, wait.NeverStop)
@@ -41,10 +40,10 @@ func (c *Controller) RunOnce() {
 			return
 		default:
 			for {
-				if c.workqueue.Len() == 0 {
+				if c.Workqueue.Len() == 0 {
 					return
 				}
-				taskObj, shutdown := c.workqueue.Get()
+				taskObj, shutdown := c.Workqueue.Get()
 				if shutdown {
 					log.Errorf("queue shutdown")
 				}
@@ -78,7 +77,7 @@ func (c *Controller) RunOnce() {
 		task.Annotations[ScheduleNodeAnnotation] = result[taskName].NodeName
 		task.Annotations[ScheduleGPUIDAnnotation] = result[taskName].GpuId[0]
 		taskByte, _ := json.Marshal(task)
-		_, err := c.client.UpdateResource(string(taskByte))
+		_, err := c.Client.UpdateResource(string(taskByte))
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -86,7 +85,7 @@ func (c *Controller) RunOnce() {
 
 }
 func (c *Controller) ProcessNextItem() bool {
-	obj, shutdown := c.workqueue.Get()
+	obj, shutdown := c.Workqueue.Get()
 	if shutdown {
 	}
 	fmt.Println("get a obj from the queue ", obj)
@@ -110,3 +109,4 @@ func MockScheduleResult()map[string]algorithm.ScheduleResult {
 	}
 	return result
 }
+
