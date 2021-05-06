@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
+	"k8s.io/client-go/util/workqueue"
+	node_daemon "kubesys.io/dl-scheduler/pkg/node-daemon"
 	"kubesys.io/dl-scheduler/pkg/node-daemon/handler"
 )
 var (
@@ -12,10 +14,15 @@ var (
 func main() {
 	client := kubesys.NewKubernetesClient(masterURL, token)
 	client.Init()
-	watcher := kubesys.NewKubernetesWatcher(client, handler.NewTaskHandler(client))
+	wq := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+
+	worker := node_daemon.NewWorker(client, wq)
+	go worker.Run()
+	watcher := kubesys.NewKubernetesWatcher(client, handler.NewTaskHandler(wq))
 	stopCh := make(chan struct{})
 	//go client.WatchResources("Pod", "default", watcher)
 	go client.WatchResources("Task", "default", watcher)
+
 	<-stopCh
 
 }
