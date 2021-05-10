@@ -12,17 +12,20 @@ import (
 	"fmt"
 	"kubesys.io/dl-scheduler/pkg/scheduler"
 	"kubesys.io/dl-scheduler/pkg/util"
+	"sync/atomic"
 )
 
 type Worker struct {
 	client *kubesys.KubernetesClient
 	workqueue workqueue.RateLimitingInterface
+	port int32
 }
 
 func NewWorker(client *kubesys.KubernetesClient, wq workqueue.RateLimitingInterface) *Worker{
 	return &Worker{
 		client:    client,
 		workqueue: wq,
+		port: 50051,
 	}
 }
 
@@ -48,7 +51,7 @@ func (w *Worker) syncHandler(obj interface{}) {
 	if err != nil {
 		log.Errorf("error get pod, %s", err)
 	}
-
+	// TODO: to judge if the corresponding pod exists
 	ss := pod.GetString("reason")
 	if ss == "NotFound" && util.Scheduled(&task){
 		fmt.Println(pod)
@@ -68,40 +71,41 @@ func (w *Worker) syncHandler(obj interface{}) {
 					Name:  "NVIDIA_DRIVER_CAPABILITIES",
 					Value: "compute,utility",
 				},
-				//corev1.EnvVar{
-				//	Name:  "LD_PRELOAD",
-				//	Value: KubeShareLibraryPath + "/libgemhook.so.1",
-				//},
-				//corev1.EnvVar{
-				//	Name:  "POD_MANAGER_IP",
-				//	Value: podManagerIP,
-				//},
-				//corev1.EnvVar{
-				//	Name:  "POD_MANAGER_PORT",
-				//	Value: fmt.Sprintf("%d", podManagerPort),
-				//},
+				corev1.EnvVar{
+					Name:  "LD_PRELOAD",
+					Value: GemLibraryPath + "/libgemhook.so.1",
+				},
+				corev1.EnvVar{
+					Name:  "POD_MANAGER_IP",
+					Value: "192.168.228.108",
+				},
+				corev1.EnvVar{
+					Name:  "POD_MANAGER_PORT",
+					Value: fmt.Sprintf("%d", w.port),
+				},
 				corev1.EnvVar{
 					Name:  "POD_NAME",
 					Value: fmt.Sprintf("%s/%s", task.ObjectMeta.Namespace, task.ObjectMeta.Name),
 				},
 			)
-			//c.VolumeMounts = append(c.VolumeMounts,
-			//	corev1.VolumeMount{
-			//		Name:      "kubeshare-lib",
-			//		MountPath: KubeShareLibraryPath,
-			//	},
-			//)
+			c.VolumeMounts = append(c.VolumeMounts,
+				corev1.VolumeMount{
+					Name:      "kubeshare-lib",
+					MountPath: GemLibraryPath,
+				},
+			)
+			atomic.AddInt32(&w.port, 1)
 		}
-		//specCopy.Volumes = append(specCopy.Volumes,
-		//	corev1.Volume{
-		//		Name: "kubeshare-lib",
-		//		VolumeSource: corev1.VolumeSource{
-		//			HostPath: &corev1.HostPathVolumeSource{
-		//				Path: KubeShareLibraryPath,
-		//			},
-		//		},
-		//	},
-		//)
+		specCopy.Volumes = append(specCopy.Volumes,
+			corev1.Volume{
+				Name: "kubeshare-lib",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: GemLibraryPath,
+					},
+				},
+			},
+		)
 		pod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      task.ObjectMeta.Name,
@@ -130,4 +134,15 @@ func (w *Worker) syncHandler(obj interface{}) {
 			log.Errorf("error create new pod, %s", err)
 		}
 	}
+
+
+	//w.SyncFile()
+}
+
+func (w *Worker) SyncFile() {
+	//pods, err := w.client.ListResources("Pod", "")
+	//if err != nil {
+	//	log.Errorf("error list pod resources, %s", err)
+
+
 }

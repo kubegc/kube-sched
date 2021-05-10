@@ -3,7 +3,6 @@ package scheduler
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -96,15 +95,15 @@ func (c *Controller) ProcessNextItem() bool {
 func MockScheduleResult()map[string]algorithm.ScheduleResult {
 	result := make(map[string]algorithm.ScheduleResult)
 	result["default/task1"] = algorithm.ScheduleResult {
-		GpuId:    []string{"GPU-" + uuid.New().String()},
+		GpuId:    []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
 		NodeName: "dell04",
 	}
 	result["default/task2"] = algorithm.ScheduleResult {
-		GpuId:    []string{"GPU-" + uuid.New().String()},
+		GpuId:    []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
 		NodeName: "dell04",
 	}
 	result["default/task3"] = algorithm.ScheduleResult {
-		GpuId:    []string{"GPU-" + uuid.New().String()},
+		GpuId:    []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
 		NodeName: "dell04",
 	}
 	return result

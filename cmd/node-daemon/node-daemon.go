@@ -20,7 +20,6 @@ func main() {
 	go worker.Run()
 	watcher := kubesys.NewKubernetesWatcher(client, handler.NewTaskHandler(wq))
 	stopCh := make(chan struct{})
-	//go client.WatchResources("Pod", "default", watcher)
 	go client.WatchResources("Task", "default", watcher)
 
 	<-stopCh
