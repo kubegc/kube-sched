@@ -136,7 +136,7 @@ func (w *Worker) syncHandler(obj interface{}) {
 	}
 
 
-	//w.SyncFile()
+	w.SyncFile()
 }
 
 func (w *Worker) SyncFile() {

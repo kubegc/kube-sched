@@ -19,8 +19,10 @@ func main() {
 	worker := node_daemon.NewWorker(client, wq)
 	go worker.Run()
 	watcher := kubesys.NewKubernetesWatcher(client, handler.NewTaskHandler(wq))
+	podWatcher := kubesys.NewKubernetesWatcher(client, handler.NewPodHandler(client))
 	stopCh := make(chan struct{})
 	go client.WatchResources("Task", "default", watcher)
+	go client.WatchResources("Pod", "default", podWatcher)
 
 	<-stopCh
 
