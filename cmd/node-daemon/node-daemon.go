@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
 	"k8s.io/client-go/util/workqueue"
 	node_daemon "kubesys.io/dl-scheduler/pkg/node-daemon"
 	"kubesys.io/dl-scheduler/pkg/node-daemon/handler"
+	"os"
 )
 var (
 	masterURL = "https://133.133.135.42:6443"
@@ -12,11 +14,12 @@ var (
 )
 
 func main() {
+
 	client := kubesys.NewKubernetesClient(masterURL, token)
 	client.Init()
 	wq := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
-
 	worker := node_daemon.NewWorker(client, wq)
+	prepareFilePaths()
 	go worker.Run()
 	watcher := kubesys.NewKubernetesWatcher(client, handler.NewTaskHandler(wq))
 	podWatcher := kubesys.NewKubernetesWatcher(client, handler.NewPodHandler(client))
@@ -26,4 +29,12 @@ func main() {
 
 	<-stopCh
 
+}
+
+
+func prepareFilePaths() {
+	err := os.MkdirAll("/Users/yangchen/kubeshare/scheduler/config", 0755)
+	if err != nil {
+		fmt.Println("mkdir error", err)
+	}
 }

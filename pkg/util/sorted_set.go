@@ -10,28 +10,33 @@ func NewSortedSet() *SortedSet {
 		m:make(map[string]bool),
 	}
 }
-func (sm *SortedSet) Contains(key string) bool {
-	if _, ok := sm.m[key]; ok{
+func (ss *SortedSet) Contains(key string) bool {
+	if _, ok := ss.m[key]; ok{
 		return true
 	}
 	return false
 }
-func (sm *SortedSet) Add(key string) {
-	sm.m[key] = true
+func (ss *SortedSet) Add(key string) {
+	ss.m[key] = true
 }
 
-func (sm *SortedSet) Delete(key string) {
-	delete(sm.m, key)
+func (ss *SortedSet) Delete(key string) {
+	delete(ss.m, key)
 }
 
-func(sm *SortedSet) SortedKeys() []string{
+func(ss *SortedSet) SortedKeys() []string{
+
 	keys := make([]string, 0)
-
-	for k, _ := range sm.m {
+	if ss.m == nil {
+		return keys
+	}
+	for k, _ := range ss.m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	return keys
 }
 
-
+func (ss *SortedSet) Size() int {
+	return len(ss.m)
+}

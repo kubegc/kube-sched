@@ -52,8 +52,7 @@ func (w *Worker) syncHandler(obj interface{}) {
 		log.Errorf("error get pod, %s", err)
 	}
 	// TODO: to judge if the corresponding pod exists
-	ss := pod.GetString("reason")
-	if ss == "NotFound" && util.Scheduled(&task){
+	if  pod != nil && util.Scheduled(&task){
 		fmt.Println(pod)
 		specCopy := task.Spec.DeepCopy()
 		annotationCopy := make(map[string]string, len(task.ObjectMeta.Annotations) + 4)
