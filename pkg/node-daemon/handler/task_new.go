@@ -20,11 +20,12 @@ import (
 
 type TaskHandler struct {
 	client *kubesys.KubernetesClient
-	gpu2RunningPodList map[string]*util.SortedSet
+	gpu2RunningTasks map[string]*util.SortedSet
 	gpuPod2Request map[string]map[string]string
 	gpuPod2Limit map[string]map[string]string
 	gpuPod2Memory map[string]map[string]string
-	gpuPod2Port map[string]map[string]string
+	task2Port map[string]int
+	basePort int
 	freePort *util.Bitmap64
 	mu sync.Mutex
 }
@@ -32,12 +33,13 @@ type TaskHandler struct {
 func NewTaskHandler(client *kubesys.KubernetesClient) *TaskHandler {
 	return &TaskHandler{
 		client: client,
-		gpu2RunningPodList: make(map[string]*util.SortedSet),
+		gpu2RunningTasks: make(map[string]*util.SortedSet),
 		gpuPod2Request: make(map[string]map[string]string),
 		gpuPod2Limit: make(map[string]map[string]string),
 		gpuPod2Memory: make(map[string]map[string]string),
-		gpuPod2Port: make(map[string]map[string]string),
-		freePort: util.NewBitMap64(50051),
+		task2Port: make(map[string]int),
+		basePort: 50051,
+		freePort: util.NewBitMap64(1000),
 	}
 }
 
@@ -58,6 +60,35 @@ func (th *TaskHandler) DoDeleted(obj map[string]interface{}) {
 
 func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 
+	tasks, err := th.client.ListResources("Task", "default")
+	if err != nil {
+		log.Errorf("error list pods, %s", err)
+	}
+	var tl dosv1.TaskList
+	err = tasks.Into(&tl)
+	th.mu.Lock()
+	allTask := make(map[string]bool)
+
+	for _, task := range tl.Items {
+		taskName := task.Namespace + "/" + task.Name
+		allTask[taskName] = true
+	}
+
+	for task, _ := range allTask {
+		if _, ok := th.task2Port[task]; !ok {
+			th.task2Port[task] = th.freePort.Acquire()
+		}
+	}
+
+	for taskName, port := range th.task2Port {
+		if _, ok := allTask[taskName]; !ok {
+			th.freePort.Release(port)
+			delete(th.task2Port, taskName)
+		}
+	}
+	th.mu.Unlock()
+
+	fmt.Println(th.task2Port)
 	// Create corresponding pod if pod does not exist
 	var task dosv1.Task
 	jsonByte, _ := json.Marshal(obj)
@@ -69,22 +100,12 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 	if  pod == nil && util.Scheduled(&task) {
 		th.CreatePod(&task)
 	}
-
-
 	// Sync running tasks
-
-	tasks, err := th.client.ListResources("Task", "default")
-	if err != nil {
-		log.Errorf("error list pods, %s", err)
-	}
-	var tl dosv1.TaskList
-	err = tasks.Into(&tl)
-
-	gpu2RunningPods := make(map[string][]string)
+	gpu2RunningTasks := make(map[string]*util.SortedSet)
 	gpuPod2Request := make(map[string]map[string]string)
 	gpuPod2Limit := make(map[string]map[string]string)
 	gpuPod2Memory:= make(map[string]map[string]string)
-	gpuPod2Port := make(map[string]map[string]string)
+	//gpuPod2Port := make(map[string]map[string]string)
 
 	//fmt.Println(pl)
 	for _, task := range tl.Items {
@@ -94,10 +115,10 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 			limit := task.Annotations["gpu-limit"]
 			memory := task.Annotations["gpu-memory"]
 			taskName := task.Namespace + "/" + task.Name
-			if gpu2RunningPods[uuid] == nil {
-				gpu2RunningPods[uuid] = make([]string, 0)
+			if gpu2RunningTasks[uuid] == nil {
+				gpu2RunningTasks[uuid] = util.NewSortedSet()
 			}
-			gpu2RunningPods[uuid] = append(gpu2RunningPods[uuid], taskName)
+			gpu2RunningTasks[uuid].Add(taskName)
 
 			if gpuPod2Request[uuid] == nil {
 				gpuPod2Request[uuid] = make(map[string]string)
@@ -114,10 +135,10 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 			}
 			gpuPod2Memory[uuid][taskName] = memory
 
-			if gpuPod2Port[uuid] == nil {
-				gpuPod2Port[uuid] = make(map[string]string)
-			}
-			gpuPod2Port[uuid][taskName] = 
+			//if gpuPod2Port[uuid] == nil {
+			//	gpuPod2Port[uuid] = make(map[string]string)
+			//}
+			//gpuPod2Port[uuid][taskName] =
 		}
 		//for _, ref := range task.OwnerReferences {
 		//	if ref.Kind == "Task" {
@@ -151,43 +172,70 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 		//	}
 		//}
 	}
-	fmt.Println(gpu2RunningPods)
+	fmt.Println(gpu2RunningTasks)
 	th.mu.Lock()
 	defer th.mu.Unlock()
-	for gpu, tasks := range gpu2RunningPods {
-		lastTasks := th.gpu2RunningPodList[gpu]
+	for gpu, tasks := range gpu2RunningTasks {
+		lastTasks := th.gpu2RunningTasks[gpu]
 		if lastTasks == nil {
 			lastTasks = util.NewSortedSet()
 		}
-		if !util.Compare(tasks, lastTasks.SortedKeys()) {
-			th.gpu2RunningPodList[gpu] = util.NewSortedSet()
-			for _, task := range tasks {
-				th.gpu2RunningPodList[gpu].Add(task)
+		if !util.Compare(tasks.SortedKeys(), lastTasks.SortedKeys()) {
+			th.gpu2RunningTasks[gpu] = util.NewSortedSet()
+			for _, task := range tasks.SortedKeys() {
+				th.gpu2RunningTasks[gpu].Add(task)
 			}
+
+
 			fmt.Println("sync called")
 			th.SyncFile(gpuPod2Request, gpuPod2Limit, gpuPod2Memory)
 		}
 	}
 	//
+
+	for gpu, tasks := range th.gpu2RunningTasks {
+		for _, task := range tasks.SortedKeys() {
+			if !gpu2RunningTasks[gpu].Contains(task) {
+				th.gpu2RunningTasks[gpu].Delete(task)
+
+			}
+		}
+	}
+
+	for gpu, tasks := range gpu2RunningTasks {
+		for _, task := range tasks.SortedKeys() {
+			if !th.gpu2RunningTasks[gpu].Contains(task) {
+				th.gpu2RunningTasks[gpu].Add(task)
+			}
+		}
+
+	}
 	//for _, pod := range th.runningPods.SortedKeys() {
 	//	if !runningPods.Contains(pod) {
 	//		th.runningPods.Delete(pod)
 	//	}
 	//}
-	//
+
 	//for _, pod := range runningPods.SortedKeys() {
 	//	uuid := pod
 	//	if !th.runningPods.Contains(pod) {
 	//		th.runningPods.Add(pod)
 	//	}
 	//}
-	//fmt.Println("Running:", th.runningPods)
+	//fmt.Println("Running:")
+	//for gpu, tasks := range th.gpu2RunningTasks {
+	//	fmt.Println(gpu, tasks.SortedKeys())
+	//}
+
+
+
+
 
 
 }
 
 func (th *TaskHandler) SyncFile(req, limit, memory map[string]map[string]string) {
-	for gpu, tasks := range th.gpu2RunningPodList {
+	for gpu, tasks := range th.gpu2RunningTasks {
 		configFile, err := os.Create("/Users/yangchen/kubeshare/scheduler/config/" + gpu)
 		if err != nil {
 			fmt.Println("file create error:", err)
@@ -210,7 +258,7 @@ func (th *TaskHandler) SyncFile(req, limit, memory map[string]map[string]string)
 		configFile.Close()
 	}
 
-	for gpu, tasks := range th.gpu2RunningPodList {
+	for gpu, tasks := range th.gpu2RunningTasks {
 		portFile, err := os.Create("/Users/yangchen/kubeshare/scheduler/podmanagerport/" + gpu)
 		if err == nil {
 			fmt.Println("file create error:", err)
@@ -220,8 +268,8 @@ func (th *TaskHandler) SyncFile(req, limit, memory map[string]map[string]string)
 		buf.Write([]byte("\n"))
 		for _, task := range tasks.SortedKeys() {
 			buf.Write([]byte(task))
-			// TODO: write port info
-
+			buf.Write([]byte(" "))
+			buf.Write([]byte(strconv.Itoa(th.task2Port[task] + th.basePort)))
 			buf.Write([]byte("\n"))
 		}
 		_ = buf.Flush()

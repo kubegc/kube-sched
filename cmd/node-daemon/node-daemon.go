@@ -35,4 +35,8 @@ func prepareFilePaths() {
 	if err != nil {
 		fmt.Println("mkdir error", err)
 	}
+	err = os.MkdirAll("/Users/yangchen/kubeshare/scheduler/podmanagerport", 0755)
+	if err != nil {
+		fmt.Println("mkdir error", err)
+	}
 }

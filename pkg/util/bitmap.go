@@ -1,66 +1,71 @@
 package util
 
-import "fmt"
-
 type Bitmap interface {
-	Clear()
-	NextAndMask() int
-	Mask(x int)
-	Unmask(x int)
-	Test(x int) bool
+	clear()
+	nextAndMask() int
+	mask(x int)
+	unmask(x int)
+	test(x int) bool
+
+	Acquire() int
+	Release(x int)
 }
 
 
 type Bitmap64 struct {
-	base int
+	capacity int
+	current int
 	bits []uint64
 }
 
-func NewBitMap64(base int) *Bitmap64 {
+func NewBitMap64(capacity int) *Bitmap64 {
 	return &Bitmap64{
-		base: base,
+		capacity: capacity,
+		current: 0,
+		bits: make([]uint64, (capacity + 63) / 64),
 	}
 }
 
-func (bm *Bitmap64) Clear() {
+func (bm *Bitmap64) clear() {
+	bm.capacity = 0
 	bm.bits = nil
+	bm.current = 0
 }
 
-func (bm *Bitmap64) Test(x int) bool {
-	diff := x - bm.base
-	idx, offset := diff / 64, diff % 64
+func (bm *Bitmap64) test(x int) bool {
+	idx, offset := x / 64, x % 64
 	return (bm.bits[idx] >> offset) & 1 > 0
 }
-func (bm *Bitmap64) NextAndMask() int {
-	for i := 0; i < len(bm.bits); i++ {
-		fmt.Println(bm.bits[i])
-		if bm.bits[i] != 0xffffffffffffffff {
-			for j := 0; j < 64; j++ {
-				if (bm.bits[i] >> j) & 1 == 0 {
-					pos := 64 * i + j + bm.base
-					bm.Mask(pos)
-					return pos
-				}
-			}
+func (bm *Bitmap64) nextAndMask() int {
+	for i := bm.current; i < bm.current + bm.capacity; i ++ {
+		i %= bm.capacity
+		idx, offset := i / 64, i % 64
+
+		if bm.bits[idx] >> offset & 1 == 0 {
+			bm.mask(i)
+			bm.current = i + 1
+			return i
 		}
 	}
-	bm.Mask(len(bm.bits) * 64 + bm.base)
-	return len(bm.bits) * 64 + bm.base
+	return -1
 }
 
-func (bm *Bitmap64) Mask(x int) {
-	diff := x - bm.base
-	idx, offset := diff / 64, diff % 64
-	for i := len(bm.bits); i <= idx; i++ {
-		bm.bits = append(bm.bits, 0)
-	}
+func (bm *Bitmap64) mask(x int) {
+	idx, offset := x / 64, x % 64
 	bm.bits[idx] = bm.bits[idx] | (1 << offset)
 }
 
-func (bm *Bitmap64) Unmask(x int) {
-	diff := x - bm.base
-	idx, offset := diff / 64, diff % 64
+func (bm *Bitmap64) unmask(x int) {
+	idx, offset := x / 64, x % 64
 	bm.bits[idx] = bm.bits[idx] & (^(1 << offset))
+}
+
+func(bm *Bitmap64) Acquire() int {
+	return bm.nextAndMask()
+}
+
+func(bm *Bitmap64) Release(x int) {
+	bm.unmask(x)
 }
 
 

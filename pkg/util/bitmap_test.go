@@ -6,12 +6,9 @@ import (
 )
 
 func TestBitmap(t *testing.T) {
-	bm := Bitmap64{
-		base: 50051,
-		bits: nil,
-	}
-
-
-	bm.Mask(50051)
-	fmt.Println(bm.Test(50051))
+	bm := NewBitMap64(1000)
+	fmt.Println(bm.Acquire())
+	fmt.Println(bm.Acquire())
+	bm.Release(0)
+	fmt.Println(bm.Acquire())
 }
