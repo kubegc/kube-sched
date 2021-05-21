@@ -43,7 +43,6 @@ func NewTaskHandler(client *kubesys.KubernetesClient) *TaskHandler {
 	}
 }
 
-
 func (th *TaskHandler) DoAdded(obj map[string]interface{}) {
 	th.syncHandler(obj)
 }
