@@ -86,7 +86,7 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 		}
 	}
 
-	
+
 	th.mu.Unlock()
 	fmt.Println(th.task2Port)
 	// Create corresponding pod if pod does not exist

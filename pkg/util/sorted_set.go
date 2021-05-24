@@ -11,6 +11,9 @@ func NewSortedSet() *SortedSet {
 	}
 }
 func (ss *SortedSet) Contains(key string) bool {
+	if ss == nil || ss.m == nil {
+		return false
+	}
 	if _, ok := ss.m[key]; ok{
 		return true
 	}
