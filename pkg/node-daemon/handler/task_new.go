@@ -236,7 +236,7 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 
 func (th *TaskHandler) SyncFile(req, limit, memory map[string]map[string]string) {
 	for gpu, tasks := range th.gpu2RunningTasks {
-		configFile, err := os.Create("/Users/yangchen/kubeshare/scheduler/config/" + gpu)
+		configFile, err := os.Create("/kubeshare/scheduler/config/" + gpu)
 		if err != nil {
 			fmt.Println("file create error:", err)
 		}
@@ -259,7 +259,7 @@ func (th *TaskHandler) SyncFile(req, limit, memory map[string]map[string]string)
 	}
 
 	for gpu, tasks := range th.gpu2RunningTasks {
-		portFile, err := os.Create("/Users/yangchen/kubeshare/scheduler/podmanagerport/" + gpu)
+		portFile, err := os.Create("/kubeshare/scheduler/podmanagerport/" + gpu)
 		if err == nil {
 			fmt.Println("file create error:", err)
 		}
