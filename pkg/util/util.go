@@ -29,7 +29,12 @@ func Compare(v1 []string, v2 []string) bool {
 		}
 	}
 	return true
+}
 
-
-
+func SortedKeys(m map[string]bool) []string{
+	keys := make([]string, 0, len(m))
+	for k, _ := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

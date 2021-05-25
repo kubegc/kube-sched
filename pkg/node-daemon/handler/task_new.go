@@ -20,7 +20,7 @@ import (
 
 type TaskHandler struct {
 	client *kubesys.KubernetesClient
-	gpu2RunningTasks map[string]*util.SortedSet
+	gpu2RunningTasks map[string]map[string]bool
 	gpuPod2Request map[string]map[string]string
 	gpuPod2Limit map[string]map[string]string
 	gpuPod2Memory map[string]map[string]string
@@ -33,7 +33,7 @@ type TaskHandler struct {
 func NewTaskHandler(client *kubesys.KubernetesClient) *TaskHandler {
 	return &TaskHandler{
 		client: client,
-		gpu2RunningTasks: make(map[string]*util.SortedSet),
+		gpu2RunningTasks: make(map[string]map[string]bool),
 		gpuPod2Request: make(map[string]map[string]string),
 		gpuPod2Limit: make(map[string]map[string]string),
 		gpuPod2Memory: make(map[string]map[string]string),
@@ -101,7 +101,7 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 		th.CreatePod(&task)
 	}
 	// Sync running tasks
-	gpu2RunningTasks := make(map[string]*util.SortedSet)
+	gpu2RunningTasks := make(map[string]map[string]bool)
 	gpuPod2Request := make(map[string]map[string]string)
 	gpuPod2Limit := make(map[string]map[string]string)
 	gpuPod2Memory:= make(map[string]map[string]string)
@@ -116,9 +116,9 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 			memory := task.Annotations["gpu-memory"]
 			taskName := task.Namespace + "/" + task.Name
 			if gpu2RunningTasks[uuid] == nil {
-				gpu2RunningTasks[uuid] = util.NewSortedSet()
+				gpu2RunningTasks[uuid] = make(map[string]bool)
 			}
-			gpu2RunningTasks[uuid].Add(taskName)
+			gpu2RunningTasks[uuid][taskName] = true
 
 			if gpuPod2Request[uuid] == nil {
 				gpuPod2Request[uuid] = make(map[string]string)
@@ -178,37 +178,32 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 	for gpu, tasks := range gpu2RunningTasks {
 		lastTasks := th.gpu2RunningTasks[gpu]
 		if lastTasks == nil {
-			lastTasks = util.NewSortedSet()
+			lastTasks = make(map[string]bool)
 		}
-		if !util.Compare(tasks.SortedKeys(), lastTasks.SortedKeys()) {
-			th.gpu2RunningTasks[gpu] = util.NewSortedSet()
-			for _, task := range tasks.SortedKeys() {
-				th.gpu2RunningTasks[gpu].Add(task)
+		if !util.Compare(util.SortedKeys(tasks), util.SortedKeys(lastTasks)) {
+			th.gpu2RunningTasks[gpu] = make(map[string]bool)
+			for _, task := range util.SortedKeys(tasks) {
+				th.gpu2RunningTasks[gpu][task] = true
 			}
-
 
 			fmt.Println("sync called")
 			th.SyncFile(gpuPod2Request, gpuPod2Limit, gpuPod2Memory)
 		}
 	}
 	//
-
 	for gpu, tasks := range th.gpu2RunningTasks {
-		for _, task := range tasks.SortedKeys() {
-			if !gpu2RunningTasks[gpu].Contains(task) {
-				th.gpu2RunningTasks[gpu].Delete(task)
-
+		for _, task := range util.SortedKeys(tasks) {
+			if _, ok := gpu2RunningTasks[gpu][task]; !ok {
+				delete(th.gpu2RunningTasks[gpu], task)
 			}
 		}
 	}
-
 	for gpu, tasks := range gpu2RunningTasks {
-		for _, task := range tasks.SortedKeys() {
-			if !th.gpu2RunningTasks[gpu].Contains(task) {
-				th.gpu2RunningTasks[gpu].Add(task)
+		for _, task := range util.SortedKeys(tasks) {
+			if _, ok := th.gpu2RunningTasks[gpu][task]; !ok {
+				th.gpu2RunningTasks[gpu][task] = true
 			}
 		}
-
 	}
 	//for _, pod := range th.runningPods.SortedKeys() {
 	//	if !runningPods.Contains(pod) {
@@ -227,11 +222,6 @@ func (th *TaskHandler) syncHandler(obj map[string]interface{}) {
 	//	fmt.Println(gpu, tasks.SortedKeys())
 	//}
 
-
-
-
-
-
 }
 
 func (th *TaskHandler) SyncFile(req, limit, memory map[string]map[string]string) {
@@ -241,9 +231,9 @@ func (th *TaskHandler) SyncFile(req, limit, memory map[string]map[string]string)
 			fmt.Println("file create error:", err)
 		}
 		buf := bufio.NewWriter(configFile)
-		buf.Write([]byte(strconv.Itoa(tasks.Size())))
+		buf.Write([]byte(strconv.Itoa(len(tasks))))
 		buf.Write([]byte("\n"))
-		for _, task := range tasks.SortedKeys() {
+		for _, task := range util.SortedKeys(tasks) {
 			buf.Write([]byte(task))
 			buf.Write([]byte(" "))
 			buf.Write([]byte(req[gpu][task]))
@@ -264,9 +254,9 @@ func (th *TaskHandler) SyncFile(req, limit, memory map[string]map[string]string)
 			fmt.Println("file create error:", err)
 		}
 		buf := bufio.NewWriter(portFile)
-		buf.Write([]byte(strconv.Itoa(tasks.Size())))
+		buf.Write([]byte(strconv.Itoa(len(tasks))))
 		buf.Write([]byte("\n"))
-		for _, task := range tasks.SortedKeys() {
+		for _, task := range util.SortedKeys(tasks) {
 			buf.Write([]byte(task))
 			buf.Write([]byte(" "))
 			buf.Write([]byte(strconv.Itoa(th.task2Port[task] + th.basePort)))
