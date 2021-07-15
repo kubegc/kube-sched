@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
+	dosv1 "github.com/kubesys/kubernetes-scheduler/pkg/apis/doslab.io/v1"
 	v1 "k8s.io/api/core/v1"
-	dosv1 "kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
 )
 
 type PodHandler struct {

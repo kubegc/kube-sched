@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
-	"kubesys.io/dl-scheduler/pkg/node-daemon/handler"
+	"github.com/kubesys/kubernetes-scheduler/pkg/node-daemon/handler"
 	"os"
 )
 var (

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
+	"github.com/kubesys/kubernetes-scheduler/pkg/apis/doslab.io/v1"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
 	"os"
 )
 

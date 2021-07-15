@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
+	dosv1 "github.com/kubesys/kubernetes-scheduler/pkg/apis/doslab.io/v1"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	dosv1 "kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
 )
 
 type Snapshot struct {

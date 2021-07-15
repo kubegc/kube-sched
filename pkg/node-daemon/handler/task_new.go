@@ -3,19 +3,19 @@ package handler
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
+	dosv1 "github.com/kubesys/kubernetes-scheduler/pkg/apis/doslab.io/v1"
+	node_daemon "github.com/kubesys/kubernetes-scheduler/pkg/node-daemon"
+	"github.com/kubesys/kubernetes-scheduler/pkg/scheduler"
+	"github.com/kubesys/kubernetes-scheduler/pkg/util"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	dosv1 "kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
-	node_daemon "kubesys.io/dl-scheduler/pkg/node-daemon"
-	"kubesys.io/dl-scheduler/pkg/scheduler"
-	"kubesys.io/dl-scheduler/pkg/util"
 	"os"
 	"strconv"
 	"sync"
-	log "github.com/sirupsen/logrus"
-	"fmt"
 )
 
 type TaskHandler struct {

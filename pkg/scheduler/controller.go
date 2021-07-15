@@ -4,24 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
+	dosv1 "github.com/kubesys/kubernetes-scheduler/pkg/apis/doslab.io/v1"
+	"github.com/kubesys/kubernetes-scheduler/pkg/scheduler/algorithm"
+	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/util/workqueue"
-	dosv1 "kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
-	"kubesys.io/dl-scheduler/pkg/scheduler/algorithm"
 	"strconv"
 	"time"
 )
 
 type Controller struct {
 	Client *kubesys.KubernetesClient
-	Workqueue workqueue.RateLimitingInterface
+	Workqueue *util.LinkedQueue
 }
 
 func NewController(client *kubesys.KubernetesClient) *Controller {
 	return &Controller{
 		Client: client,
-		Workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "tasks"),
+		Workqueue: util.NewLinkedQueue(),
 	}
 }
 
@@ -42,10 +42,7 @@ func (c *Controller) RunOnce() {
 				if c.Workqueue.Len() == 0 {
 					return
 				}
-				taskObj, shutdown := c.Workqueue.Get()
-				if shutdown {
-					log.Errorf("queue shutdown")
-				}
+				taskObj  := c.Workqueue.Get()
 				task := &dosv1.Task{}
 				taskByte := taskObj.(string)
 				err := json.Unmarshal([]byte(taskByte), &task)
@@ -84,9 +81,7 @@ func (c *Controller) RunOnce() {
 
 }
 func (c *Controller) ProcessNextItem() bool {
-	obj, shutdown := c.Workqueue.Get()
-	if shutdown {
-	}
+	obj := c.Workqueue.Get()
 	fmt.Println("get a obj from the queue ", obj)
 	return true
 }

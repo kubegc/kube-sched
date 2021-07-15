@@ -2,9 +2,9 @@ package algorithm
 
 import (
 	"fmt"
+	doslabv1 "github.com/kubesys/kubernetes-scheduler/pkg/apis/doslab.io/v1"
+	"github.com/kubesys/kubernetes-scheduler/pkg/scheduler/snapshot"
 	log "github.com/sirupsen/logrus"
-	doslabv1 "kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
-	"kubesys.io/dl-scheduler/pkg/scheduler/snapshot"
 	"sort"
 	"strconv"
 )

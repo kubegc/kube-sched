@@ -3,14 +3,14 @@ package scheduler
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/client-go/util/workqueue"
+	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 )
 
 type WorkQueueHandler struct {
-	workqueue workqueue.RateLimitingInterface
+	workqueue *util.LinkedQueue
 }
 
-func NewWorkQueueHandler(workqueue workqueue.RateLimitingInterface) *WorkQueueHandler {
+func NewWorkQueueHandler(workqueue *util.LinkedQueue) *WorkQueueHandler {
 	return &WorkQueueHandler{workqueue: workqueue}
 }
 

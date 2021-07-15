@@ -2,8 +2,8 @@ package algorithm
 
 import (
 	"fmt"
-	doslabv1 "kubesys.io/dl-scheduler/pkg/apis/doslab.io/v1"
-	"kubesys.io/dl-scheduler/pkg/scheduler/snapshot"
+	doslabv1 "github.com/kubesys/kubernetes-scheduler/pkg/apis/doslab.io/v1"
+	"github.com/kubesys/kubernetes-scheduler/pkg/scheduler/snapshot"
 )
 
 type BatchFairScheduleAlgorithm struct {
