@@ -5,8 +5,9 @@ package scheduler
 
 import (
 	"encoding/json"
-	"fmt"
+	jsonutil "github.com/kubesys/kubernetes-client-go/pkg/util"
 	"github.com/kubesys/kubernetes-scheduler/pkg/util"
+	log "github.com/sirupsen/logrus"
 )
 
 /**
@@ -25,17 +26,17 @@ func NewTaskManager(queue *util.LinkedQueue) *TaskManager {
 
 //TODO
 func (w *TaskManager) DoAdded(obj map[string]interface{}) {
+	w.queue.Add(jsonutil.NewObjectNodeWithValue(obj))
 	jb, _ := json.Marshal(obj)
-	w.queue.Add(string(jb))
-	fmt.Println("adding task: " + string(jb))
+	log.Info("adding task: " + string(jb))
 }
 
 //TODO
 func (w *TaskManager) DoModified(obj map[string]interface{}) {
-	fmt.Println(obj)
+	//
 }
 
 //TODO
 func (w *TaskManager) DoDeleted(obj map[string]interface{}) {
-	fmt.Println(obj)
+
 }

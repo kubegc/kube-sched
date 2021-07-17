@@ -4,13 +4,17 @@
 
 package util
 
+import (
+	"github.com/kubesys/kubernetes-client-go/pkg/util"
+)
+
 /**
  *   authors: wuheng@iscas.ac.cn
  *
  **/
 
 type Elem struct {
-	value interface{}
+	value *util.ObjectNode
 	prev *Elem
 	next *Elem
 }
@@ -29,19 +33,17 @@ func (queue *LinkedQueue) Len() int {
 	return queue.size
 }
 
-func (queue *LinkedQueue) Remove() interface{} {
+func (queue *LinkedQueue) Remove() *util.ObjectNode {
 	if queue.head == nil {
 		panic("Empty queue.")
 	}
 	elem := queue.head
 	queue.head = elem.next
-	elem.next = nil
-	elem.value = nil
 	queue.size--
-	return elem
+	return elem.value
 }
 
-func (queue *LinkedQueue) Add(value interface{}) {
+func (queue *LinkedQueue) Add(value *util.ObjectNode) {
 	elem := &Elem{value, queue.tail, nil}
 	if queue.tail == nil {
 		queue.head = elem
@@ -51,5 +53,4 @@ func (queue *LinkedQueue) Add(value interface{}) {
 		queue.tail = elem
 	}
 	queue.size++
-	elem = nil
 }

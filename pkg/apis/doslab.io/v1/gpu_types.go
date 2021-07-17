@@ -81,7 +81,3 @@ type R struct {
 	Memory int    `json:"memory,omitempty"`
 }
 
-
-func init() {
-	SchemeBuilder.Register(&GPU{}, &GPUList{})
-}

@@ -12,6 +12,7 @@ package main
 import (
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
 	"github.com/kubesys/kubernetes-scheduler/pkg/scheduler"
+	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 )
 
 var (
@@ -23,8 +24,10 @@ func main() {
 	client := kubesys.NewKubernetesClient(masterURL, token)
 	client.Init()
 
-	decider := scheduler.NewDecider(client)
+	queue := util.NewLinkedQueue()
+
+	decider := scheduler.NewDecider(client, queue)
 	go decider.Run()
 
-	decider.ListenTask(scheduler.NewTaskManager(decider.Queue))
+	decider.Listen(scheduler.NewTaskManager(queue))
 }
