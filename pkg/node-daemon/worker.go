@@ -28,7 +28,7 @@ package node_daemon
 //
 //func (w *Worker) Run() {
 //	for {
-//		obj, shutdown := w.workqueue.Get()
+//		obj, shutdown := w.workqueue.Remove()
 //		fmt.Println(obj)
 //		if shutdown {
 //			log.Errorf("node-daemon worker shutdown")

@@ -14,6 +14,5 @@ require (
 
 replace (
 	k8s.io/api => k8s.io/api v0.20.2
-	k8s.io/client-go => k8s.io/client-go v0.20.2
 	k8s.io/kubernetes => k8s.io/kubernetes v0.20.2
 )

@@ -1,3 +1,6 @@
+/**
+ * Copyright (2021, ) Institute of Software, Chinese Academy of Sciences
+ **/
 package scheduler
 
 import (
@@ -13,24 +16,29 @@ import (
 	"time"
 )
 
-type Controller struct {
+/**
+ *   authors: yangchen19@otcaix.iscas.ac.cn
+ *            wuheng@iscas.ac.cn
+ *
+ **/
+
+type Decider struct {
 	Client *kubesys.KubernetesClient
-	Workqueue *util.LinkedQueue
+	Queue  *util.LinkedQueue
 }
 
-func NewController(client *kubesys.KubernetesClient) *Controller {
-	return &Controller{
+func NewDecider(client *kubesys.KubernetesClient) *Decider {
+	return &Decider{
 		Client: client,
-		Workqueue: util.NewLinkedQueue(),
+		Queue:  util.NewLinkedQueue(),
 	}
 }
 
-func (c *Controller) Run() {
+func (c *Decider) Run() {
 	wait.Until(c.RunOnce, time.Second, wait.NeverStop)
 }
 
-
-func (c *Controller) RunOnce() {
+func (c *Decider) RunOnce() {
 	tasks := make([]*dosv1.Task, 0)
 	timer := time.NewTimer(1 * time.Second)
 	run := func() {
@@ -39,10 +47,10 @@ func (c *Controller) RunOnce() {
 			return
 		default:
 			for {
-				if c.Workqueue.Len() == 0 {
+				if c.Queue.Len() == 0 {
 					return
 				}
-				taskObj  := c.Workqueue.Get()
+				taskObj  := c.Queue.Remove()
 				task := &dosv1.Task{}
 				taskByte := taskObj.(string)
 				err := json.Unmarshal([]byte(taskByte), &task)
@@ -80,9 +88,9 @@ func (c *Controller) RunOnce() {
 	}
 
 }
-func (c *Controller) ProcessNextItem() bool {
-	obj := c.Workqueue.Get()
-	fmt.Println("get a obj from the queue ", obj)
+func (c *Decider) ProcessNextItem() bool {
+	obj := c.Queue.Remove()
+	fmt.Println("get a obj from the Queue ", obj)
 	return true
 }
 
@@ -104,3 +112,7 @@ func MockScheduleResult()map[string]algorithm.ScheduleResult {
 	return result
 }
 
+func (c *Decider) ListenTask (taskMgr *TaskManager) {
+	watcher := kubesys.NewKubernetesWatcher(c.Client, taskMgr)
+	c.Client.WatchResources("Task", "default", watcher)
+}

@@ -29,11 +29,16 @@ func (queue *LinkedQueue) Len() int {
 	return queue.size
 }
 
-func (queue *LinkedQueue) Get() interface{} {
+func (queue *LinkedQueue) Remove() interface{} {
 	if queue.head == nil {
 		panic("Empty queue.")
 	}
-	return queue.head.value
+	elem := queue.head
+	queue.head = elem.next
+	elem.next = nil
+	elem.value = nil
+	queue.size--
+	return elem
 }
 
 func (queue *LinkedQueue) Add(value interface{}) {
@@ -46,17 +51,5 @@ func (queue *LinkedQueue) Add(value interface{}) {
 		queue.tail = elem
 	}
 	queue.size++
-	elem = nil
-}
-
-func (queue *LinkedQueue) Remove() {
-	if queue.head == nil {
-		panic("Empty queue.")
-	}
-	elem := queue.head
-	queue.head = elem.next
-	elem.next = nil
-	elem.value = nil
-	queue.size--
 	elem = nil
 }
