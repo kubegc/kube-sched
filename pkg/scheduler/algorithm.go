@@ -5,6 +5,7 @@ package scheduler
 
 import (
 	jsonutil "github.com/kubesys/kubernetes-client-go/pkg/util"
+	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 )
 
 /**
@@ -12,17 +13,13 @@ import (
  *            wuheng@iscas.ac.cn
  *
  **/
-type ScheduleResult struct {
+type Result struct {
 	GpuCount map[string]int
 	GpuId []string
 	NodeName string
 }
-type ScheduleAlgorithm interface {
+type Algorithm interface {
 	Name() string
+	Schedule(task []*jsonutil.ObjectNode, nodes *util.LinkedQueue) map[string]Result
 }
 
-
-type SingleScheduleAlgorithm interface {
-	ScheduleAlgorithm
-	Schedule(task *[]jsonutil.ObjectNode, nodes *[]jsonutil.ObjectNode) ScheduleResult
-}

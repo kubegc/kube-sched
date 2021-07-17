@@ -16,27 +16,27 @@ import (
  *
  **/
 
-type TaskManager struct {
+type NodeManager struct {
 	queue *util.LinkedQueue
 }
 
-func NewTaskManager(queue *util.LinkedQueue) *TaskManager {
-	return &TaskManager{queue: queue}
+func NewNodeManager(queue *util.LinkedQueue) *NodeManager {
+	return &NodeManager{queue: queue}
 }
 
 //TODO
-func (taskMgr *TaskManager) DoAdded(obj map[string]interface{}) {
-	taskMgr.queue.Add(jsonutil.NewObjectNodeWithValue(obj))
+func (nodeMgr *NodeManager) DoAdded(obj map[string]interface{}) {
+	nodeMgr.queue.Add(jsonutil.NewObjectNodeWithValue(obj))
 	jb, _ := json.Marshal(obj)
-	log.Info("adding task: " + string(jb))
+	log.Info("adding node: " + string(jb))
 }
 
 //TODO
-func (taskMgr *TaskManager) DoModified(obj map[string]interface{}) {
+func (nodeMgr *NodeManager) DoModified(obj map[string]interface{}) {
 	//
 }
 
 //TODO
-func (taskMgr *TaskManager) DoDeleted(obj map[string]interface{}) {
+func (nodeMgr *NodeManager) DoDeleted(obj map[string]interface{}) {
 
 }

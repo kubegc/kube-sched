@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
 	jsonutil "github.com/kubesys/kubernetes-client-go/pkg/util"
-	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
@@ -19,36 +18,44 @@ import (
  **/
 
 type Decider struct {
-	Client *kubesys.KubernetesClient
-	Queue  *util.LinkedQueue
+	Client  *kubesys.KubernetesClient
+	PodMgr  *TaskManager
+	NodeMgr *NodeManager
+	Algorithm interface{}
 }
 
-func NewDecider(client *kubesys.KubernetesClient, queue *util.LinkedQueue) *Decider {
+func NewDecider(client *kubesys.KubernetesClient, podMgr *TaskManager, nodeMgr *NodeManager, algorithm interface{}) *Decider {
 	return &Decider{
-		Client: client,
-		Queue:  queue,
+		Client:  client,
+		PodMgr:  podMgr,
+		NodeMgr: nodeMgr,
+		Algorithm: algorithm,
 	}
 }
 
-func (d *Decider) Run() {
+func (decider *Decider) Run() {
 	for {
-		if d.Queue.Len() == 0 {
+		if decider.PodMgr.queue.Len() == 0 {
 			time.Sleep(100 * time.Millisecond)
 		}
-		d.runOnce()
+		decider.runOnce()
 	}
 }
 
-func (d *Decider) runOnce() {
+func (decider *Decider) runOnce() {
 
 	tasks := make([]*jsonutil.ObjectNode, 0)
 
 	for {
-		if d.Queue.Len() == 0 {
+		if decider.PodMgr.queue.Len() == 0 {
 			break
 		}
 
-		tasks = append(tasks, d.Queue.Remove())
+		task := decider.PodMgr.queue.Remove()
+
+		if task != nil {
+			tasks = append(tasks, task)
+		}
 	}
 
 	if len(tasks) == 0 {
@@ -56,7 +63,7 @@ func (d *Decider) runOnce() {
 	}
 
 	// 加env
-	result := MockScheduleResult()
+	result := decider.Algorithm.(Algorithm).Schedule(tasks, decider.NodeMgr.queue)
 	for _, task := range tasks {
 
 		meta := task.GetObjectNode("metadata")
@@ -77,7 +84,7 @@ func (d *Decider) runOnce() {
 
 		taskByte, _ := json.Marshal(task.Object)
 
-		_, err := d.Client.UpdateResource(string(taskByte))
+		_, err := decider.Client.UpdateResource(string(taskByte))
 
 		if err != nil {
 			log.Error("Fail to schedule " + taskName)
@@ -90,24 +97,11 @@ func (d *Decider) runOnce() {
 }
 
 
-func MockScheduleResult() map[string] ScheduleResult {
-	result := make(map[string]ScheduleResult)
-	result["default/task1"] = ScheduleResult {
-		GpuId:    []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
-		NodeName: "dell04",
-	}
-	result["default/task2"] = ScheduleResult {
-		GpuId:    []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
-		NodeName: "dell04",
-	}
-	result["default/task3"] = ScheduleResult {
-		GpuId:    []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
-		NodeName: "dell04",
-	}
-	return result
-}
+func (decider *Decider) Listen(taskMgr *TaskManager, nodeMgr *NodeManager) {
 
-func (d *Decider) Listen(taskMgr *TaskManager) {
-	watcher := kubesys.NewKubernetesWatcher(d.Client, taskMgr)
-	d.Client.WatchResources("Task", "default", watcher)
+	taskWatcher := kubesys.NewKubernetesWatcher(decider.Client, taskMgr)
+	go decider.Client.WatchResources("Task", "", taskWatcher)
+
+	nodeWatcher := kubesys.NewKubernetesWatcher(decider.Client, nodeMgr)
+	decider.Client.WatchResources("Node", "", nodeWatcher)
 }

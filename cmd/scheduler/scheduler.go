@@ -12,6 +12,7 @@ package main
 import (
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
 	"github.com/kubesys/kubernetes-scheduler/pkg/scheduler"
+	alg "github.com/kubesys/kubernetes-scheduler/pkg/scheduler/algorithm"
 	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 )
 
@@ -24,10 +25,13 @@ func main() {
 	client := kubesys.NewKubernetesClient(masterURL, token)
 	client.Init()
 
-	queue := util.NewLinkedQueue()
+	podMgr := scheduler.NewTaskManager(util.NewLinkedQueue())
+	nodeMgr := scheduler.NewNodeManager(util.NewLinkedQueue())
+	algorithm := alg.NewMockSingleGPU()
 
-	decider := scheduler.NewDecider(client, queue)
+	decider := scheduler.NewDecider(client, podMgr, nodeMgr, algorithm)
 	go decider.Run()
 
-	decider.Listen(scheduler.NewTaskManager(queue))
+	decider.Listen(podMgr, nodeMgr)
+
 }

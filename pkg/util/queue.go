@@ -35,7 +35,7 @@ func (queue *LinkedQueue) Len() int {
 
 func (queue *LinkedQueue) Remove() *util.ObjectNode {
 	if queue.head == nil {
-		panic("Empty queue.")
+		return nil
 	}
 	elem := queue.head
 	queue.head = elem.next
