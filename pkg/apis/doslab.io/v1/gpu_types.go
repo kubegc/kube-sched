@@ -1,5 +1,5 @@
 /*
-
+Copyright 2021.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -45,9 +45,6 @@ type GPUStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	Allocated R `json:"allocated,omitempty"`
-
-	// Pod names running on this GPU
-	PodMap map[string]string `json:"pod_map,omitempty"`
 }
 
 // +genclient
@@ -78,6 +75,5 @@ type GPUList struct {
 
 type R struct {
 	Core   string `json:"core,omitempty"`
-	Memory int    `json:"memory,omitempty"`
+	Memory string `json:"memory,omitempty"`
 }
-

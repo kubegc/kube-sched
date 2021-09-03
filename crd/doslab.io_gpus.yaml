@@ -61,7 +61,7 @@ spec:
                 core:
                   type: string
                 memory:
-                  type: integer
+                  type: string
               type: object
             family:
               type: string
@@ -80,12 +80,7 @@ spec:
                 core:
                   type: string
                 memory:
-                  type: integer
-              type: object
-            pod_map:
-              additionalProperties:
-                type: string
-              description: Pod names running on this GPU
+                  type: string
               type: object
           type: object
       type: object

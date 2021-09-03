@@ -4,9 +4,7 @@
 package scheduler
 
 import (
-	jsonutil "github.com/kubesys/kubernetes-client-go/pkg/util"
 	"github.com/kubesys/kubernetes-scheduler/pkg/scheduler"
-	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 )
 
 /**
@@ -23,23 +21,14 @@ func NewMockSingleGPU() *MockSingleGPU {
 	return &MockSingleGPU{}
 }
 
-func (alg *MockSingleGPU) Schedule(tasks []*jsonutil.ObjectNode, nodes *util.LinkedQueue) map[string]scheduler.Result  {
-	result := make(map[string]scheduler.Result)
-	result["default/task1"] = scheduler.Result{
-		GpuId:    []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
+func (alg *MockSingleGPU) Schedule(requestMemory, requestCore int, availableNode []string, resourceOnNode map[string]*scheduler.NodeResource) *scheduler.Result {
+	result := scheduler.Result{
 		NodeName: "dell04",
-	}
-	result["default/task2"] = scheduler.Result{
 		GpuId:    []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
-		NodeName: "dell04",
 	}
-	result["default/task3"] = scheduler.Result{
-		GpuId:    []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
-		NodeName: "dell04",
-	}
-	return result
+	return &result
 }
 
-func (alg *MockSingleGPU) Name() string  {
+func (alg *MockSingleGPU) Name() string {
 	return "MockSingleGPU"
 }

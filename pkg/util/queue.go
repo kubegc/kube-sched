@@ -34,7 +34,7 @@ func (queue *LinkedQueue) Len() int {
 }
 
 func (queue *LinkedQueue) Remove() *util.ObjectNode {
-	if queue.head == nil {
+	if queue.size == 0 {
 		return nil
 	}
 	elem := queue.head
@@ -45,7 +45,7 @@ func (queue *LinkedQueue) Remove() *util.ObjectNode {
 
 func (queue *LinkedQueue) Add(value *util.ObjectNode) {
 	elem := &Elem{value, queue.tail, nil}
-	if queue.tail == nil {
+	if queue.size == 0 {
 		queue.head = elem
 		queue.tail = elem
 	} else {
