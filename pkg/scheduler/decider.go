@@ -50,24 +50,32 @@ func (decider *Decider) Run() {
 			decider.PodMgr.muOfAdd.Lock()
 			pod := decider.PodMgr.queueOfAdded.Remove()
 			decider.PodMgr.muOfAdd.Unlock()
-			time.Sleep(5 * time.Millisecond)
 			go decider.addPod(pod)
+			time.Sleep(5 * time.Millisecond)
 		}
 
 		if decider.PodMgr.queueOfDeleted.Len() > 0 {
 			decider.PodMgr.muOfDelete.Lock()
-			pod := decider.PodMgr.queueOfAdded.Remove()
+			pod := decider.PodMgr.queueOfDeleted.Remove()
 			decider.PodMgr.muOfDelete.Unlock()
-			time.Sleep(5 * time.Millisecond)
 			go decider.deletePod(pod)
+			time.Sleep(5 * time.Millisecond)
 		}
 
 		if decider.GpuMgr.queue.Len() > 0 {
 			decider.GpuMgr.mu.Lock()
 			gpu := decider.GpuMgr.queue.Remove()
 			decider.GpuMgr.mu.Unlock()
-			time.Sleep(5 * time.Millisecond)
 			go decider.addGpu(gpu)
+			time.Sleep(5 * time.Millisecond)
+		}
+
+		if decider.NodeMgr.queue.Len() > 0 {
+			decider.NodeMgr.mu.Lock()
+			node := decider.NodeMgr.queue.Remove()
+			decider.NodeMgr.mu.Unlock()
+			go decider.modifyNode(node)
+			time.Sleep(5 * time.Millisecond)
 		}
 
 	}
@@ -148,7 +156,7 @@ func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
 		annotations = meta.GetObjectNode("annotations")
 	}
 	annotations.Object[ResourceAssumeTime] = strconv.FormatInt(time.Now().UnixNano(), 10)
-	annotations.Object[ResourceUUID] = result.GpuId[0]
+	annotations.Object[ResourceUUID] = result.GpuUuid[0]
 	annotations.Object[AnnAssignedFlag] = "false"
 
 	podByte, _ := json.Marshal(pod.Object)
@@ -166,13 +174,13 @@ func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
 	bind["apiVersion"] = "v1"
 	bind["kind"] = "Binding"
 	bind["metadata"] = map[string]string{
-		"name": podName,
+		"name":      podName,
 		"namespace": namespace,
 	}
 	bind["target"] = map[string]string{
 		"apiVersion": "v1",
-		"kind": "Node",
-		"name": result.NodeName,
+		"kind":       "Node",
+		"name":       result.NodeName,
 	}
 
 	bindByte, _ := json.Marshal(bind)
@@ -187,10 +195,10 @@ func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
 	}
 
 	// Update resource and GPU CRD
-	decider.resourceOnNode[result.NodeName].gpusByUuid[result.GpuId[0]].memoryAllocated += requestMemory
-	decider.resourceOnNode[result.NodeName].gpusByUuid[result.GpuId[0]].coreAllocated += requestCore
+	decider.resourceOnNode[result.NodeName].gpusByUuid[result.GpuUuid[0]].memoryAllocated += requestMemory
+	decider.resourceOnNode[result.NodeName].gpusByUuid[result.GpuUuid[0]].coreAllocated += requestCore
 
-	gpuName := decider.gpuUuidToName[result.GpuId[0]]
+	gpuName := decider.gpuUuidToName[result.GpuUuid[0]]
 	gpu, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
 	if err != nil {
 		log.Fatalf("Failed to get GPU CRD, %s.", err)
@@ -210,7 +218,7 @@ func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
 		log.Fatalf("Failed to update GPU CRD, %s.", err)
 	}
 
-	log.Infof("Pod %s on namespace %s will run on node %s with %d gpu(s).", podName, namespace, result.NodeName, len(result.GpuId))
+	log.Infof("Pod %s on namespace %s will run on node %s with %d gpu(s).", podName, namespace, result.NodeName, len(result.GpuUuid))
 
 }
 
@@ -225,6 +233,8 @@ func (decider *Decider) deletePod(pod *jsonutil.ObjectNode) {
 	meta := pod.GetObjectNode("metadata")
 	podName := meta.GetString("name")
 	namespace := meta.GetString("namespace")
+	annotations := meta.GetObjectNode("annotations")
+	gpuUuid := annotations.GetString(ResourceUUID)
 
 	requestMemory, requestCore := 0, 0
 	containers := spec.GetArray("containers")
@@ -254,7 +264,30 @@ func (decider *Decider) deletePod(pod *jsonutil.ObjectNode) {
 	defer decider.mu.Unlock()
 
 	// Update resource and GPU CRD
-	
+	decider.resourceOnNode[nodeName].gpusByUuid[gpuUuid].memoryAllocated -= requestMemory
+	decider.resourceOnNode[nodeName].gpusByUuid[gpuUuid].coreAllocated -= requestCore
+
+	gpuName := decider.gpuUuidToName[gpuUuid]
+	gpu, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
+	if err != nil {
+		log.Fatalf("Failed to get GPU CRD, %s.", err)
+	}
+	status := gpu.GetObjectNode("status")
+	allocated := status.GetObjectNode("allocated")
+
+	oldMemory, _ := strconv.Atoi(allocated.Object["memory"].(string))
+	oldCore, _ := strconv.Atoi(allocated.Object["core"].(string))
+
+	allocated.Object["memory"] = strconv.Itoa(oldMemory - requestMemory)
+	allocated.Object["core"] = strconv.Itoa(oldCore - requestCore)
+
+	gpuByte, _ := json.Marshal(gpu.Object)
+	_, err = decider.Client.UpdateResource(string(gpuByte))
+	if err != nil {
+		log.Fatalf("Failed to update GPU CRD, %s.", err)
+	}
+
+	log.Infof("Pod %s on namespace %s is deleled on node %s.", podName, namespace, nodeName)
 }
 
 func (decider *Decider) addGpu(gpu *jsonutil.ObjectNode) {
@@ -263,7 +296,7 @@ func (decider *Decider) addGpu(gpu *jsonutil.ObjectNode) {
 
 	spec := gpu.GetObjectNode("spec")
 	gpuUuid := spec.GetString("uuid")
-	node := spec.GetString("node")
+	nodeName := spec.GetString("node")
 
 	status := gpu.GetObjectNode("status")
 	capacity := spec.GetObjectNode("capacity")
@@ -274,6 +307,21 @@ func (decider *Decider) addGpu(gpu *jsonutil.ObjectNode) {
 	memoryCapacity, _ := strconv.Atoi(capacity.Object["memory"].(string))
 	memoryAllocated, _ := strconv.Atoi(allocated.Object["memory"].(string))
 
+	hasDevicePlugin := false
+	node, err := decider.Client.GetResource("Node", "", nodeName)
+	if err != nil {
+		log.Fatalf("Failed to get GPU's node, %s.", err)
+	}
+
+	nodeStatus := node.GetObjectNode("status")
+	nodeCapacity := nodeStatus.GetObjectNode("capacity")
+	if val, ok := nodeCapacity.Object[ResourceCore]; ok {
+		nodeDeviceCapacity := val.(string)
+		if nodeDeviceCapacity != "0" {
+			hasDevicePlugin = true
+		}
+	}
+
 	decider.mu.Lock()
 	defer decider.mu.Unlock()
 
@@ -282,21 +330,51 @@ func (decider *Decider) addGpu(gpu *jsonutil.ObjectNode) {
 	gpuResource := &GpuResource{
 		gpuName:         gpuName,
 		uuid:            gpuUuid,
-		node:            node,
+		node:            nodeName,
 		coreCapacity:    coreCapacity,
 		coreAllocated:   coreAllocated,
 		memoryCapacity:  memoryCapacity,
 		memoryAllocated: memoryAllocated,
 	}
-	if _, ok := decider.resourceOnNode[node]; ok {
-		decider.resourceOnNode[node].gpus = append(decider.resourceOnNode[node].gpus, gpuResource)
+	if _, ok := decider.resourceOnNode[nodeName]; ok {
+		decider.resourceOnNode[nodeName].gpusByUuid[gpuUuid] = gpuResource
 	} else {
-		decider.resourceOnNode[node] = &NodeResource{
-			nodeName:        node,
-			hasDevicePlugin: false,
-			gpus:            []*GpuResource{gpuResource},
+		decider.resourceOnNode[nodeName] = &NodeResource{
+			nodeName:        nodeName,
+			hasDevicePlugin: hasDevicePlugin,
+			gpusByUuid:      map[string]*GpuResource{gpuUuid: gpuResource},
 		}
 	}
 
 	log.Infof("GPU CRD %s, uuid %s added.", gpuName, gpuUuid)
+}
+
+func (decider *Decider) modifyNode(node *jsonutil.ObjectNode) {
+	meta := node.GetObjectNode("metadata")
+	nodeName := meta.GetString("name")
+
+	hasDevicePlugin := false
+	nodeStatus := node.GetObjectNode("status")
+	nodeCapacity := nodeStatus.GetObjectNode("capacity")
+	if val, ok := nodeCapacity.Object[ResourceCore]; ok {
+		nodeDeviceCapacity := val.(string)
+		if nodeDeviceCapacity != "0" {
+			hasDevicePlugin = true
+		}
+	}
+
+	decider.mu.Lock()
+	defer decider.mu.Unlock()
+
+	if hasDevicePlugin == decider.resourceOnNode[nodeName].hasDevicePlugin {
+		return
+	}
+
+	// Update resource
+	decider.resourceOnNode[nodeName].hasDevicePlugin = hasDevicePlugin
+	if hasDevicePlugin {
+		log.Infof("Node %s now runs device plugin.", nodeName)
+	} else {
+		log.Infof("Node %s now loses device plugin.", nodeName)
+	}
 }

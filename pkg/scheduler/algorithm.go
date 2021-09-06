@@ -6,7 +6,7 @@ package scheduler
 
 type Result struct {
 	NodeName string
-	GpuId    []string
+	GpuUuid    []string
 }
 
 type Algorithm interface {

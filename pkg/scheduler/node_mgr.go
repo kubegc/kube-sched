@@ -7,6 +7,7 @@ package scheduler
 import (
 	jsonutil "github.com/kubesys/kubernetes-client-go/pkg/util"
 	"github.com/kubesys/kubernetes-scheduler/pkg/util"
+	"sync"
 )
 
 /**
@@ -17,6 +18,7 @@ import (
 
 type NodeManager struct {
 	queue *util.LinkedQueue
+	mu    sync.Mutex
 }
 
 func NewNodeManager(queue *util.LinkedQueue) *NodeManager {
@@ -24,12 +26,13 @@ func NewNodeManager(queue *util.LinkedQueue) *NodeManager {
 }
 
 func (nodeMgr *NodeManager) DoAdded(obj map[string]interface{}) {
-	nodeMgr.queue.Add(jsonutil.NewObjectNodeWithValue(obj))
 }
 
 func (nodeMgr *NodeManager) DoModified(obj map[string]interface{}) {
+	nodeMgr.mu.Lock()
+	nodeMgr.queue.Add(jsonutil.NewObjectNodeWithValue(obj))
+	nodeMgr.mu.Unlock()
 }
 
 func (nodeMgr *NodeManager) DoDeleted(obj map[string]interface{}) {
-
 }
