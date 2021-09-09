@@ -45,7 +45,6 @@ func NewDecider(client *kubesys.KubernetesClient, podMgr *PodManager, gpuMgr *Gp
 
 func (decider *Decider) Run() {
 	for {
-
 		if decider.PodMgr.queueOfAdded.Len() > 0 {
 			decider.PodMgr.muOfAdd.Lock()
 			pod := decider.PodMgr.queueOfAdded.Remove()
@@ -77,7 +76,6 @@ func (decider *Decider) Run() {
 			go decider.modifyNode(node)
 			time.Sleep(5 * time.Millisecond)
 		}
-
 	}
 }
 
@@ -155,9 +153,10 @@ func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
 	if meta.Object["annotations"] != nil {
 		annotations = meta.GetObjectNode("annotations")
 	}
-	annotations.Object[ResourceAssumeTime] = strconv.FormatInt(time.Now().UnixNano(), 10)
-	annotations.Object[ResourceUUID] = result.GpuUuid[0]
+	annotations.Object[AnnAssumeTime] = strconv.FormatInt(time.Now().UnixNano(), 10)
 	annotations.Object[AnnAssignedFlag] = "false"
+	annotations.Object[ResourceUUID] = result.GpuUuid[0]
+
 
 	podByte, _ := json.Marshal(pod.Object)
 	_, err := decider.Client.UpdateResource(string(podByte))
@@ -366,7 +365,7 @@ func (decider *Decider) modifyNode(node *jsonutil.ObjectNode) {
 	decider.mu.Lock()
 	defer decider.mu.Unlock()
 
-	if hasDevicePlugin == decider.resourceOnNode[nodeName].hasDevicePlugin {
+	if val, ok := decider.resourceOnNode[nodeName]; !ok || val.hasDevicePlugin == hasDevicePlugin {
 		return
 	}
 

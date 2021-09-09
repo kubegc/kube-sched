@@ -16,8 +16,8 @@ const (
 
 	ResourceMemory = "doslab.io/gpu-memory"
 	ResourceCore   = "doslab.io/gpu-core"
+	ResourceUUID   = "doslab.io/gpu-uuid"
 
-	ResourceAssumeTime = "doslab.io/gpu-assume-time"
-	ResourceUUID       = "doslab.io/gpu-uuid"
-	AnnAssignedFlag    = "doslab.io/gpu-assigned"
+	AnnAssumeTime   = "doslab.io/gpu-assume-time"
+	AnnAssignedFlag = "doslab.io/gpu-assigned"
 )

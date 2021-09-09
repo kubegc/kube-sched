@@ -32,7 +32,7 @@ func main() {
 	client := kubesys.NewKubernetesClient(*masterUrl, *token)
 	client.Init()
 
-	log.Infoln("Starting pod scheduler...")
+	log.Infoln("Starting pod scheduler.")
 
 	podMgr := scheduler.NewPodManager(util.NewLinkedQueue(), util.NewLinkedQueue())
 	gpuMgr := scheduler.NewGpuManager(util.NewLinkedQueue())

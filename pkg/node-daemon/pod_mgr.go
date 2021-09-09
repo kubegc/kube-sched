@@ -11,23 +11,23 @@ import (
 )
 
 type PodManager struct {
-	queueOfAdded   *util.LinkedQueue
-	queueOfDeleted *util.LinkedQueue
-	muOfAdd        sync.Mutex
-	muOfDelete     sync.Mutex
+	queueOfModified *util.LinkedQueue
+	queueOfDeleted  *util.LinkedQueue
+	muOfModify      sync.Mutex
+	muOfDelete      sync.Mutex
 }
 
-func NewPodManager(queueOfAdded, queueOfDeleted *util.LinkedQueue) *PodManager {
-	return &PodManager{queueOfAdded: queueOfAdded, queueOfDeleted: queueOfDeleted}
+func NewPodManager(queueOfModified, queueOfDeleted *util.LinkedQueue) *PodManager {
+	return &PodManager{queueOfModified: queueOfModified, queueOfDeleted: queueOfDeleted}
 }
 
 func (podMgr *PodManager) DoAdded(obj map[string]interface{}) {
-	podMgr.muOfAdd.Lock()
-	podMgr.queueOfAdded.Add(jsonutil.NewObjectNodeWithValue(obj))
-	podMgr.muOfAdd.Unlock()
 }
 
 func (podMgr *PodManager) DoModified(obj map[string]interface{}) {
+	podMgr.muOfModify.Lock()
+	podMgr.queueOfModified.Add(jsonutil.NewObjectNodeWithValue(obj))
+	podMgr.muOfModify.Unlock()
 }
 
 func (podMgr *PodManager) DoDeleted(obj map[string]interface{}) {

@@ -9,4 +9,15 @@ const (
 	GemSchedulerIpPath                = "/kubeshare/library/schedulerIP.txt"
 	GemSchedulerGPUConfigPath         = "/kubeshare/scheduler/config/"
 	GemSchedulerGPUPodManagerPortPath = "/kubeshare/scheduler/podmanagerport/"
+
+	EnvGemSchedulerIp = "GEM_SCHEDULER_IP"
+
+	GPUCRDAPIVersion = "doslab.io/v1"
+	GPUCRDNamespace  = "default"
+
+	AnnAssumeTime = "doslab.io/gpu-assume-time"
+
+	ResourceMemory = "doslab.io/gpu-memory"
+	ResourceCore   = "doslab.io/gpu-core"
+	ResourceUUID   = "doslab.io/gpu-uuid"
 )
