@@ -5,10 +5,12 @@
 package node_daemon
 
 const (
-	GemLibraryPath                    = "/kubeshare/library"
-	GemSchedulerIpPath                = "/kubeshare/library/schedulerIP.txt"
-	GemSchedulerGPUConfigPath         = "/kubeshare/scheduler/config/"
-	GemSchedulerGPUPodManagerPortPath = "/kubeshare/scheduler/podmanagerport/"
+	GemLibraryPath                     = "/kubeshare/library"
+	GemSchedulerIpPath                 = "/kubeshare/library/schedulerIP.txt"
+	GemSchedulerGPUConfigPath          = "/kubeshare/scheduler/config/"
+	GemSchedulerGPUPodManagerPortPath  = "/kubeshare/scheduler/podmanagerport/"
+	GemSchedulerGPUPodManagerPortStart = 50050
+	GemSchedulerGPUPodManagerPortEnd   = 50500
 
 	EnvGemSchedulerIp = "GEM_SCHEDULER_IP"
 

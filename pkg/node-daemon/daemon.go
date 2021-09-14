@@ -18,21 +18,31 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
 
 type NodeDaemon struct {
-	Client   *kubesys.KubernetesClient
-	PodMgr   *PodManager
-	NodeName string
+	Client     *kubesys.KubernetesClient
+	PodMgr     *PodManager
+	NodeName   string
+	PortMap    map[int]bool
+	PodVisited map[string]bool
+	mu         sync.Mutex
 }
 
 func NewNodeDaemon(client *kubesys.KubernetesClient, podMgr *PodManager, nodeName string) *NodeDaemon {
+	portMap := make(map[int]bool)
+	for i := GemSchedulerGPUPodManagerPortStart; i <= GemSchedulerGPUPodManagerPortEnd; i++ {
+		portMap[i] = false
+	}
 	return &NodeDaemon{
-		Client:   client,
-		PodMgr:   podMgr,
-		NodeName: nodeName,
+		Client:     client,
+		PodMgr:     podMgr,
+		NodeName:   nodeName,
+		PortMap:    portMap,
+		PodVisited: make(map[string]bool),
 	}
 }
 
@@ -160,11 +170,19 @@ func (daemon *NodeDaemon) modifyPod(pod *jsonutil.ObjectNode) {
 		return
 	}
 
-	var str []string
-
 	podName := meta.GetString("name")
 	namespace := meta.GetString("namespace")
-	str = append(str, namespace+"/"+podName)
+
+	daemon.mu.Lock()
+	if daemon.PodVisited[namespace+"/"+podName] {
+		daemon.mu.Unlock()
+		return
+	}
+	daemon.PodVisited[namespace+"/"+podName] = true
+	daemon.mu.Unlock()
+
+	var str1 []string
+	str1 = append(str1, namespace+"/"+podName)
 
 	spec := pod.GetObjectNode("spec")
 	requestMemory, requestCore := 0, 0
@@ -190,31 +208,92 @@ func (daemon *NodeDaemon) modifyPod(pod *jsonutil.ObjectNode) {
 	}
 
 	if requestCore != 0 {
-		str = append(str, strconv.FormatFloat(float64(requestCore)/100, 'f', 6, 64))
-		str = append(str, strconv.FormatFloat(float64(requestCore)/100, 'f', 6, 64))
+		str1 = append(str1, strconv.FormatFloat(float64(requestCore)/100, 'f', 6, 64))
+		str1 = append(str1, strconv.FormatFloat(float64(requestCore)/100, 'f', 6, 64))
 	}
 	if requestMemory != 0 {
-		str = append(str, strconv.Itoa(1024*requestMemory))
+		str1 = append(str1, strconv.Itoa(1024*requestMemory))
 	}
-	str[len(str)-1] += "\n"
+	str1[len(str1)-1] += "\n"
 
 	gpu := annotations.GetString(ResourceUUID)
 
 	// Update gem-gpu-config file
-	err := daemon.updateFile(str, GemSchedulerGPUConfigPath, gpu)
+	err := daemon.updateFile(str1, GemSchedulerGPUConfigPath, gpu)
 	if err != nil {
 		log.Fatalf("Failed to update gem-gpu-config file, %s.", err)
+	}
+
+	daemon.mu.Lock()
+	port := 0
+	for i := GemSchedulerGPUPodManagerPortStart; i <= GemSchedulerGPUPodManagerPortEnd; i++ {
+		if !daemon.PortMap[i] {
+			port = i
+			daemon.PortMap[i] = true
+			break
+		}
+	}
+	daemon.mu.Unlock()
+	if port == 0 {
+		log.Warningf("There is no enough port for pod %s on ns %s, try later.", podName, namespace)
+		daemon.mu.Lock()
+		daemon.PodVisited[namespace+"/"+podName] = false
+		daemon.mu.Unlock()
+		daemon.PodMgr.muOfModify.Lock()
+		daemon.PodMgr.queueOfModified.Add(pod)
+		daemon.PodMgr.muOfModify.Unlock()
+	}
+
+	var str2 []string
+	str2 = append(str2, namespace+"/"+podName)
+	str2 = append(str2, strconv.Itoa(port))
+	str2[len(str2)-1] += "\n"
+
+	// Update gem-gpu-pod-manager-port file
+	err = daemon.updateFile(str2, GemSchedulerGPUPodManagerPortPath, gpu)
+	if err != nil {
+		log.Fatalf("Failed to update gem-gpu-port file, %s.", err)
 	}
 
 }
 
 func (daemon *NodeDaemon) deletePod(pod *jsonutil.ObjectNode) {
+	meta := pod.GetObjectNode("metadata")
+	if meta.Object["annotations"] == nil {
+		return
+	}
+	annotations := meta.GetObjectNode("annotations")
+
+	podName := meta.GetString("name")
+	namespace := meta.GetString("namespace")
+
+	daemon.mu.Lock()
+	if !daemon.PodVisited[namespace+"/"+podName] {
+		daemon.mu.Unlock()
+		return
+	}
+	daemon.PodVisited[namespace+"/"+podName] = false
+	daemon.mu.Unlock()
+
+	gpu := annotations.GetString(ResourceUUID)
+
+	// Update gem-gpu-config file
+	err := daemon.removeFile(namespace+"/"+podName, GemSchedulerGPUConfigPath, gpu)
+	if err != nil {
+		log.Fatalf("Failed to remove gem-gpu-config file, %s.", err)
+	}
+
+	// Update gem-gpu-pod-manager-port file
+	err = daemon.removeFile(namespace+"/"+podName, GemSchedulerGPUPodManagerPortPath, gpu)
+	if err != nil {
+		log.Fatalf("Failed to remove gem-gpu-port file, %s.", err)
+	}
 
 }
 
 func (daemon *NodeDaemon) updateFile(str []string, dir, gpu string) error {
-	fileName := dir + "/" + gpu
-	f, err := os.Open(fileName)
+	fileName := dir + gpu
+	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
@@ -243,16 +322,70 @@ func (daemon *NodeDaemon) updateFile(str []string, dir, gpu string) error {
 	}
 	lines[str[0]] = str[1:]
 
-	f, err = os.Create(fileName)
+	_, err = f.WriteString(strconv.Itoa(len(lines)) + "\n")
+	if err != nil {
+		return err
+	}
+	for k, v := range lines {
+		s := k
+		for i := 0; i < len(v); i++ {
+			s += " "
+			s += v[i]
+		}
+		_, err := f.WriteString(s)
+		if err != nil {
+			return err
+		}
+	}
+
+	f.Sync()
+
+	err = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Success to update file %s.", fileName)
+
+	return nil
+}
+
+func (daemon *NodeDaemon) removeFile(pod, dir, gpu string) error {
+	fileName := dir + gpu
+	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
+	err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX)
+	if err != nil {
+		return err
+	}
+
+	lines := make(map[string][]string)
+	reader := bufio.NewReader(f)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		words := strings.Split(line, " ")
+		if len(words) == 1 {
+			continue
+		}
+		lines[words[0]] = words[1:]
+	}
+	delete(lines, pod)
+
 	_, err = f.WriteString(strconv.Itoa(len(lines)) + "\n")
 	if err != nil {
 		return err
 	}
+
 	for k, v := range lines {
 		s := k
 		for i := 0; i < len(v); i++ {
