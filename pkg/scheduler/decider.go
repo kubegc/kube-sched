@@ -149,14 +149,14 @@ func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
 	}
 
 	// Add annotations and bind node
-	annotations := jsonutil.NewObjectNodeWithValue(make(map[string]interface{}))
+	annotations := &jsonutil.ObjectNode{}
 	if meta.Object["annotations"] != nil {
 		annotations = meta.GetObjectNode("annotations")
 	}
 	annotations.Object[AnnAssumeTime] = strconv.FormatInt(time.Now().UnixNano(), 10)
 	annotations.Object[AnnAssignedFlag] = "false"
 	annotations.Object[ResourceUUID] = result.GpuUuid[0]
-
+	meta.Object["annotations"] = annotations.Object
 
 	podByte, _ := json.Marshal(pod.Object)
 	_, err := decider.Client.UpdateResource(string(podByte))

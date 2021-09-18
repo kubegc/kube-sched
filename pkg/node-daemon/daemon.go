@@ -24,12 +24,13 @@ import (
 )
 
 type NodeDaemon struct {
-	Client     *kubesys.KubernetesClient
-	PodMgr     *PodManager
-	NodeName   string
-	PortMap    map[int]bool
-	PodVisited map[string]bool
-	mu         sync.Mutex
+	Client         *kubesys.KubernetesClient
+	PodMgr         *PodManager
+	NodeName       string
+	PortMap        map[int]bool
+	PodVisited     map[string]bool
+	GemSchedulerIp string
+	mu             sync.Mutex
 }
 
 func NewNodeDaemon(client *kubesys.KubernetesClient, podMgr *PodManager, nodeName string) *NodeDaemon {
@@ -47,15 +48,11 @@ func NewNodeDaemon(client *kubesys.KubernetesClient, podMgr *PodManager, nodeNam
 }
 
 func (daemon *NodeDaemon) Run() {
-	// f, err := os.Create(GemSchedulerIpPath)
-	// if err != nil {
-	// 	log.Fatalf("Failed to create file %s, %s", GemSchedulerIpPath, err)
-	// }
-	// f.WriteString(os.Getenv(EnvGemSchedulerIp) + "\n")
-	// f.Sync()
-	// f.Close()
-
-	err := os.MkdirAll(GemSchedulerGPUConfigPath, os.ModePerm)
+	err := os.MkdirAll(GemLibraryPath, os.ModePerm)
+	if err != nil {
+		log.Fatalf("Failed to create fir %s, %s.", GemLibraryPath, err)
+	}
+	err = os.MkdirAll(GemSchedulerGPUConfigPath, os.ModePerm)
 	if err != nil {
 		log.Fatalf("Failed to create fir %s, %s.", GemSchedulerGPUConfigPath, err)
 	}
@@ -63,6 +60,19 @@ func (daemon *NodeDaemon) Run() {
 	if err != nil {
 		log.Fatalf("Failed to create fir %s, %s.", GemSchedulerGPUPodManagerPortPath, err)
 	}
+
+	f, err := os.Create(GemSchedulerIpPath)
+	if err != nil {
+		log.Fatalf("Failed to create file %s, %s.", GemSchedulerIpPath, err)
+	}
+	ip := os.Getenv(EnvGemSchedulerIp)
+	if ip == "" {
+		log.Fatalf("Failed to get env GemSchedulerIp, %s.", err)
+	}
+	daemon.GemSchedulerIp = ip
+	f.WriteString(ip + "\n")
+	f.Sync()
+	f.Close()
 
 	log.Infoln("Loading NVML...")
 	if err := nvml.Init(); err != nil {
@@ -255,6 +265,21 @@ func (daemon *NodeDaemon) modifyPod(pod *jsonutil.ObjectNode) {
 		log.Fatalf("Failed to update gem-gpu-port file, %s.", err)
 	}
 
+	time.Sleep(time.Second)
+	copyPod, err := daemon.Client.GetResource("Pod", namespace, podName)
+	if err != nil {
+		log.Fatalf("Failed to get copy pod %s on ns %s, %s.", podName, namespace, err)
+	}
+	copyMeta := copyPod.GetObjectNode("meta")
+	copyAnnotations := copyMeta.GetObjectNode("annotations")
+
+	copyAnnotations.Object[AnnGemSchedulerIp] = daemon.GemSchedulerIp
+	copyAnnotations.Object[AnnGemPodManagerPort] = strconv.Itoa(port)
+	podByte, _ := json.Marshal(copyPod.Object)
+	_, err = daemon.Client.UpdateResource(string(podByte))
+	if err != nil {
+		log.Fatalf("Failed to set pod %s's annotations, %s.", podName, err)
+	}
 }
 
 func (daemon *NodeDaemon) deletePod(pod *jsonutil.ObjectNode) {
@@ -293,7 +318,7 @@ func (daemon *NodeDaemon) deletePod(pod *jsonutil.ObjectNode) {
 
 func (daemon *NodeDaemon) updateFile(str []string, dir, gpu string) error {
 	fileName := dir + gpu
-	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0666)
 	if err != nil {
 		return err
 	}
@@ -321,6 +346,12 @@ func (daemon *NodeDaemon) updateFile(str []string, dir, gpu string) error {
 		lines[words[0]] = words[1:]
 	}
 	lines[str[0]] = str[1:]
+
+	f, err = os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 
 	_, err = f.WriteString(strconv.Itoa(len(lines)) + "\n")
 	if err != nil {
@@ -352,7 +383,7 @@ func (daemon *NodeDaemon) updateFile(str []string, dir, gpu string) error {
 
 func (daemon *NodeDaemon) removeFile(pod, dir, gpu string) error {
 	fileName := dir + gpu
-	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(fileName, os.O_RDWR, 0666)
 	if err != nil {
 		return err
 	}
@@ -381,6 +412,12 @@ func (daemon *NodeDaemon) removeFile(pod, dir, gpu string) error {
 	}
 	delete(lines, pod)
 
+	f, err = os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
 	_, err = f.WriteString(strconv.Itoa(len(lines)) + "\n")
 	if err != nil {
 		return err
@@ -405,7 +442,7 @@ func (daemon *NodeDaemon) removeFile(pod, dir, gpu string) error {
 		return err
 	}
 
-	log.Infof("Success to update file %s.", fileName)
+	log.Infof("Success to remove file %s.", fileName)
 
 	return nil
 }
