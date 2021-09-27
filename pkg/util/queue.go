@@ -8,11 +8,6 @@ import (
 	"github.com/kubesys/kubernetes-client-go/pkg/util"
 )
 
-/**
- *   authors: wuheng@iscas.ac.cn
- *
- **/
-
 type Elem struct {
 	value *util.ObjectNode
 	prev *Elem

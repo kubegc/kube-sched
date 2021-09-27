@@ -4,11 +4,6 @@
 
 package main
 
-/**
- *   authors: yangchen19@otcaix.iscas.ac.cn
- *            wuheng@iscas.ac.cn
- *
- **/
 import (
 	"flag"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
@@ -40,8 +35,7 @@ func main() {
 	algorithm := alg.NewMockSingleGPU()
 
 	decider := scheduler.NewDecider(client, podMgr, gpuMgr, nodeMgr, algorithm)
-	go decider.Run()
-
 	decider.Listen(podMgr, gpuMgr, nodeMgr)
 
+	decider.Run()
 }

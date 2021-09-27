@@ -4,11 +4,6 @@
 
 package scheduler
 
-/**
- *   authors: yangchen19@otcaix.iscas.ac.cn
- *            wuheng@iscas.ac.cn
- *
- **/
 const (
 	SchedulerName = "doslab-gpu-scheduler"
 

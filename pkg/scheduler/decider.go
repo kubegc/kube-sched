@@ -14,12 +14,6 @@ import (
 	"time"
 )
 
-/**
- *   authors: yangchen19@otcaix.iscas.ac.cn
- *            wuheng@iscas.ac.cn
- *
- **/
-
 type Decider struct {
 	Client         *kubesys.KubernetesClient
 	PodMgr         *PodManager
@@ -88,7 +82,7 @@ func (decider *Decider) Listen(podMgr *PodManager, gpuMgr *GpuManager, nodeMgr *
 	go decider.Client.WatchResources("GPU", "", gpuWatcher)
 
 	nodeWatcher := kubesys.NewKubernetesWatcher(decider.Client, nodeMgr)
-	decider.Client.WatchResources("Node", "", nodeWatcher)
+	go decider.Client.WatchResources("Node", "", nodeWatcher)
 }
 
 func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {

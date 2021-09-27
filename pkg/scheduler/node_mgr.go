@@ -10,12 +10,6 @@ import (
 	"sync"
 )
 
-/**
- *   authors: yangchen19@otcaix.iscas.ac.cn
- *            wuheng@iscas.ac.cn
- *
- **/
-
 type NodeManager struct {
 	queue *util.LinkedQueue
 	mu    sync.Mutex
