@@ -6,13 +6,8 @@ package scheduler
 
 import (
 	"github.com/kubesys/kubernetes-scheduler/pkg/scheduler"
+	"time"
 )
-
-/**
- *   authors: yangchen19@otcaix.iscas.ac.cn
- *            wuheng@iscas.ac.cn
- *
- **/
 
 type MockSingleGPU struct {
 	scheduler.Algorithm
@@ -23,9 +18,16 @@ func NewMockSingleGPU() *MockSingleGPU {
 }
 
 func (alg *MockSingleGPU) Schedule(requestMemory, requestCore int, availableNode []string, resourceOnNode map[string]*scheduler.NodeResource) *scheduler.Result {
+	gpuUuid := ""
+	if time.Now().Nanosecond() % 2 == 1 {
+		gpuUuid = "GPU-21f591ed-d77b-3a27-c674-51375d2e4fd9"
+	} else {
+		gpuUuid = " GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"
+	}
+
 	result := scheduler.Result{
 		NodeName: "dell04",
-		GpuUuid:  []string{"GPU-da33250c-6bee-6f8d-dd97-f1aa43d95783"},
+		GpuUuid:  []string{gpuUuid},
 	}
 	return &result
 }

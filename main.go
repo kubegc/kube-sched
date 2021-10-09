@@ -20,6 +20,10 @@ var (
 
 func main() {
 	flag.Parse()
+	if *masterUrl == "" || *token == "" {
+		log.Fatalln("Error masterUrl or token.")
+	}
+
 	client := kubesys.NewKubernetesClient(*masterUrl, *token)
 	client.Init()
 
