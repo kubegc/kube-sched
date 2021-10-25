@@ -17,7 +17,7 @@ func NewMockSingleGPU() *MockSingleGPU {
 	return &MockSingleGPU{}
 }
 
-func (alg *MockSingleGPU) Schedule(requestMemory, requestCore int, availableNode []string, resourceOnNode map[string]*scheduler.NodeResource) *scheduler.Result {
+func (alg *MockSingleGPU) Schedule(requestMemory, requestCore int64, availableNode []string, resourceOnNode map[string]*scheduler.NodeResource) *scheduler.Result {
 	gpuUuid := ""
 	if time.Now().Nanosecond() % 2 == 1 {
 		gpuUuid = "GPU-21f591ed-d77b-3a27-c674-51375d2e4fd9"

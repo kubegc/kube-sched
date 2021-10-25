@@ -5,7 +5,8 @@
 package scheduler
 
 import (
-	jsonutil "github.com/kubesys/kubernetes-client-go/pkg/util"
+	"encoding/json"
+	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
 	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 	"sync"
 )
@@ -23,8 +24,9 @@ func (nodeMgr *NodeManager) DoAdded(obj map[string]interface{}) {
 }
 
 func (nodeMgr *NodeManager) DoModified(obj map[string]interface{}) {
+	bytes, _ := json.Marshal(obj)
 	nodeMgr.mu.Lock()
-	nodeMgr.queue.Add(jsonutil.NewObjectNodeWithValue(obj))
+	nodeMgr.queue.Add(kubesys.ToJsonObject(bytes))
 	nodeMgr.mu.Unlock()
 }
 

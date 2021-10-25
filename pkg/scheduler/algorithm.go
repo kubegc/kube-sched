@@ -12,5 +12,5 @@ type Result struct {
 type Algorithm interface {
 	Name() string
 	// Schedule selects a node with gpus for a pod, returns nil if there is no suitable resource.
-	Schedule(requestMemory, requestCore int, availableNode []string, resourceOnNode map[string]*NodeResource) *Result
+	Schedule(requestMemory, requestCore int64, availableNode []string, resourceOnNode map[string]*NodeResource) *Result
 }

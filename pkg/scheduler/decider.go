@@ -6,8 +6,8 @@ package scheduler
 
 import (
 	"encoding/json"
+	jsonObj "github.com/kubesys/kubernetes-client-go/pkg/json"
 	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
-	jsonutil "github.com/kubesys/kubernetes-client-go/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"strconv"
 	"sync"
@@ -85,36 +85,42 @@ func (decider *Decider) Listen(podMgr *PodManager, gpuMgr *GpuManager, nodeMgr *
 	go decider.Client.WatchResources("Node", "", nodeWatcher)
 }
 
-func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
-	spec := pod.GetObjectNode("spec")
-	schedulerName := spec.GetString("schedulerName")
-	if schedulerName != SchedulerName {
+func (decider *Decider) addPod(pod *jsonObj.JsonObject) {
+	spec := pod.GetJsonObject("spec")
+	schedulerName, err := spec.GetString("schedulerName")
+	if err != nil || schedulerName != SchedulerName {
 		return
 	}
 
-	meta := pod.GetObjectNode("metadata")
-	podName := meta.GetString("name")
-	namespace := meta.GetString("namespace")
+	meta := pod.GetJsonObject("metadata")
+	podName, err := meta.GetString("name")
+	if err != nil {
+		log.Fatalln("Failed to get pod name.")
+	}
+	namespace, err := meta.GetString("namespace")
+	if err != nil {
+		log.Fatalln("Failed to get pod namespace.")
+	}
 
-	requestMemory, requestCore := 0, 0
-	containers := spec.GetArray("containers")
-	for _, c := range containers {
-		container := c.(map[string]interface{})
-		if _, ok := container["resources"]; !ok {
+	requestMemory, requestCore := int64(0), int64(0)
+	containers := spec.GetJsonArray("containers")
+	for _, c := range containers.Values() {
+		container := c.JsonObject()
+		if !container.HasKey("resources") {
 			continue
 		}
-		resources := container["resources"].(map[string]interface{})
-		if _, ok := resources["limits"]; !ok {
+		resources := container.GetJsonObject("resources")
+		if !resources.HasKey("limits") {
 			continue
 		}
-		limits := resources["limits"].(map[string]interface{})
-		if val, ok := limits[ResourceMemory]; ok {
-			m, _ := strconv.Atoi(val.(string))
+		limits := resources.GetJsonObject("limits")
+		if val, err := limits.GetString(ResourceMemory); err == nil {
+			m, _ := strconv.ParseInt(val, 10, 64)
 			requestMemory += m
 		}
-		if val, ok := limits[ResourceCore]; ok {
-			m, _ := strconv.Atoi(val.(string))
-			requestCore += m
+		if val, err := limits.GetString(ResourceCore); err == nil {
+			m, _ := strconv.ParseInt(val, 10, 64)
+			requestCore += int64(m)
 		}
 	}
 
@@ -143,17 +149,17 @@ func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
 	}
 
 	// Add annotations and bind node
-	annotations := &jsonutil.ObjectNode{}
-	if meta.Object["annotations"] != nil {
-		annotations = meta.GetObjectNode("annotations")
+	annotations := &jsonObj.JsonObject{}
+	if meta.HasKey("annotations") {
+		annotations = meta.GetJsonObject("annotations")
 	}
-	annotations.Object[AnnAssumeTime] = strconv.FormatInt(time.Now().UnixNano(), 10)
-	annotations.Object[AnnAssignedFlag] = "false"
-	annotations.Object[ResourceUUID] = result.GpuUuid[0]
-	meta.Object["annotations"] = annotations.Object
+	annotations.Put(AnnAssumeTime, strconv.FormatInt(time.Now().UnixNano(), 10))
+	annotations.Put(AnnAssignedFlag, "false")
+	annotations.Put(ResourceUUID, result.GpuUuid[0])
+	meta.Put("annotations", annotations.ToInterface())
+	pod.Put("metadata", meta.ToInterface())
 
-	podByte, _ := json.Marshal(pod.Object)
-	_, err := decider.Client.UpdateResource(string(podByte))
+	_, err = decider.Client.UpdateResource(pod.ToString())
 	if err != nil {
 		log.Warningf("Failed to add annotations for pod %s on namespace %s, %s, try again later.", podName, namespace, err)
 		time.Sleep(100 * time.Millisecond)
@@ -192,21 +198,33 @@ func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
 	decider.resourceOnNode[result.NodeName].gpusByUuid[result.GpuUuid[0]].coreAllocated += requestCore
 
 	gpuName := decider.gpuUuidToName[result.GpuUuid[0]]
-	gpu, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
+	gpuBytes, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
 	if err != nil {
 		log.Fatalf("Failed to get GPU CRD, %s.", err)
 	}
-	status := gpu.GetObjectNode("status")
-	allocated := status.GetObjectNode("allocated")
+	gpu := kubesys.ToJsonObject(gpuBytes)
+	status := gpu.GetJsonObject("status")
+	allocated := status.GetJsonObject("allocated")
 
-	oldMemory, _ := strconv.Atoi(allocated.Object["memory"].(string))
-	oldCore, _ := strconv.Atoi(allocated.Object["core"].(string))
+	oldMemoryStr, err := allocated.GetString("memory")
+	if err != nil {
+		log.Fatalf("Failed to get old memory, %s.", err)
+	}
+	oldCoreStr, err := allocated.GetString("core")
+	if err != nil {
+		log.Fatalf("Failed to get old core, %s.", err)
+	}
 
-	allocated.Object["memory"] = strconv.Itoa(oldMemory + requestMemory)
-	allocated.Object["core"] = strconv.Itoa(oldCore + requestCore)
+	oldMemory, _ := strconv.ParseInt(oldMemoryStr, 10, 64)
+	oldCore, _ := strconv.ParseInt(oldCoreStr, 10, 64)
 
-	gpuByte, _ := json.Marshal(gpu.Object)
-	_, err = decider.Client.UpdateResource(string(gpuByte))
+	allocated.Put("memory", strconv.FormatInt(oldMemory + requestMemory, 10))
+	allocated.Put("core", strconv.FormatInt(oldCore + requestCore, 10))
+
+	status.Put("allocated", allocated.ToInterface())
+	gpu.Put("status", status.ToInterface())
+
+	_, err = decider.Client.UpdateResource(gpu.ToString())
 	if err != nil {
 		log.Fatalf("Failed to update GPU CRD, %s.", err)
 	}
@@ -215,38 +233,51 @@ func (decider *Decider) addPod(pod *jsonutil.ObjectNode) {
 
 }
 
-func (decider *Decider) deletePod(pod *jsonutil.ObjectNode) {
-	spec := pod.GetObjectNode("spec")
-	schedulerName := spec.GetString("schedulerName")
-	nodeName := spec.GetString("nodeName")
-	if schedulerName != SchedulerName {
+func (decider *Decider) deletePod(pod *jsonObj.JsonObject) {
+	spec := pod.GetJsonObject("spec")
+	schedulerName, err := spec.GetString("schedulerName")
+	if err != nil || schedulerName != SchedulerName {
+		return
+	}
+	nodeName, err := spec.GetString("nodeName")
+	if err != nil {
 		return
 	}
 
-	meta := pod.GetObjectNode("metadata")
-	podName := meta.GetString("name")
-	namespace := meta.GetString("namespace")
-	annotations := meta.GetObjectNode("annotations")
-	gpuUuid := annotations.GetString(ResourceUUID)
+	meta := pod.GetJsonObject("metadata")
+	podName, err := meta.GetString("name")
+	if err != nil {
+		log.Fatalln("Failed to get pod name.")
+	}
+	namespace, err := meta.GetString("namespace")
+	if err != nil {
+		log.Fatalln("Failed to get pod namespace.")
+	}
 
-	requestMemory, requestCore := 0, 0
-	containers := spec.GetArray("containers")
-	for _, c := range containers {
-		container := c.(map[string]interface{})
-		if _, ok := container["resources"]; !ok {
+	annotations := meta.GetJsonObject("annotations")
+	gpuUuid, err := annotations.GetString(ResourceUUID)
+	if err != nil {
+		log.Fatalf("Failed to get gpu uuid for pod %s on ns %s, %s.", podName, namespace, err)
+	}
+
+	requestMemory, requestCore := int64(0), int64(0)
+	containers := spec.GetJsonArray("containers")
+	for _, c := range containers.Values() {
+		container := c.JsonObject()
+		if !container.HasKey("resources") {
 			continue
 		}
-		resources := container["resources"].(map[string]interface{})
-		if _, ok := resources["limits"]; !ok {
+		resources := container.GetJsonObject("resources")
+		if !resources.HasKey("limits") {
 			continue
 		}
-		limits := resources["limits"].(map[string]interface{})
-		if val, ok := limits[ResourceMemory]; ok {
-			m, _ := strconv.Atoi(val.(string))
+		limits := resources.GetJsonObject("limits")
+		if val, err := limits.GetString(ResourceMemory); err == nil {
+			m, _ := strconv.ParseInt(val, 10, 64)
 			requestMemory += m
 		}
-		if val, ok := limits[ResourceCore]; ok {
-			m, _ := strconv.Atoi(val.(string))
+		if val, err := limits.GetString(ResourceCore); err == nil {
+			m, _ := strconv.ParseInt(val, 10, 64)
 			requestCore += m
 		}
 	}
@@ -261,21 +292,34 @@ func (decider *Decider) deletePod(pod *jsonutil.ObjectNode) {
 	decider.resourceOnNode[nodeName].gpusByUuid[gpuUuid].coreAllocated -= requestCore
 
 	gpuName := decider.gpuUuidToName[gpuUuid]
-	gpu, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
+	gpuBytes, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
 	if err != nil {
 		log.Fatalf("Failed to get GPU CRD, %s.", err)
 	}
-	status := gpu.GetObjectNode("status")
-	allocated := status.GetObjectNode("allocated")
 
-	oldMemory, _ := strconv.Atoi(allocated.Object["memory"].(string))
-	oldCore, _ := strconv.Atoi(allocated.Object["core"].(string))
+	gpu := kubesys.ToJsonObject(gpuBytes)
+	status := gpu.GetJsonObject("status")
+	allocated := status.GetJsonObject("allocated")
 
-	allocated.Object["memory"] = strconv.Itoa(oldMemory - requestMemory)
-	allocated.Object["core"] = strconv.Itoa(oldCore - requestCore)
+	oldMemoryStr, err := allocated.GetString("memory")
+	if err != nil {
+		log.Fatalf("Failed to get old memory, %s.", err)
+	}
+	oldCoreStr, err := allocated.GetString("core")
+	if err != nil {
+		log.Fatalf("Failed to get old core, %s.", err)
+	}
 
-	gpuByte, _ := json.Marshal(gpu.Object)
-	_, err = decider.Client.UpdateResource(string(gpuByte))
+	oldMemory, _ := strconv.ParseInt(oldMemoryStr, 10, 64)
+	oldCore, _ := strconv.ParseInt(oldCoreStr, 10, 64)
+
+	allocated.Put("memory", strconv.FormatInt(oldMemory - requestMemory, 10))
+	allocated.Put("core", strconv.FormatInt(oldCore - requestCore, 10))
+
+	status.Put("allocated", allocated.ToInterface())
+	gpu.Put("status", status.ToInterface())
+
+	_, err = decider.Client.UpdateResource(gpu.ToString())
 	if err != nil {
 		log.Fatalf("Failed to update GPU CRD, %s.", err)
 	}
@@ -283,34 +327,62 @@ func (decider *Decider) deletePod(pod *jsonutil.ObjectNode) {
 	log.Infof("Pod %s on namespace %s is deleled on node %s.", podName, namespace, nodeName)
 }
 
-func (decider *Decider) addGpu(gpu *jsonutil.ObjectNode) {
-	meta := gpu.GetObjectNode("metadata")
-	gpuName := meta.GetString("name")
+func (decider *Decider) addGpu(gpu *jsonObj.JsonObject) {
+	meta := gpu.GetJsonObject("metadata")
+	gpuName, err := meta.GetString("name")
+	if err != nil {
+		log.Fatalln("Failed to get gpu name.")
+	}
 
-	spec := gpu.GetObjectNode("spec")
-	gpuUuid := spec.GetString("uuid")
-	nodeName := spec.GetString("node")
+	spec := gpu.GetJsonObject("spec")
+	gpuUuid, err := spec.GetString("uuid")
+	if err != nil {
+		log.Fatalf("Failed to get gpu %s's uuid, %s.", gpuName, err)
+	}
+	nodeName, err := spec.GetString("node")
+	if err != nil {
+		log.Fatalf("Failed to get gpu %s's node name, %s.", gpuName, err)
+	}
 
-	status := gpu.GetObjectNode("status")
-	capacity := spec.GetObjectNode("capacity")
-	allocated := status.GetObjectNode("allocated")
+	status := gpu.GetJsonObject("status")
+	capacity := spec.GetJsonObject("capacity")
+	allocated := status.GetJsonObject("allocated")
 
-	coreCapacity, _ := strconv.Atoi(capacity.Object["core"].(string))
-	coreAllocated, _ := strconv.Atoi(allocated.Object["core"].(string))
-	memoryCapacity, _ := strconv.Atoi(capacity.Object["memory"].(string))
-	memoryAllocated, _ := strconv.Atoi(allocated.Object["memory"].(string))
+	coreCapacityStr, err := capacity.GetString("core")
+	if err != nil {
+		log.Fatalf("Failed to get gpu %s's core capacity, %s.", gpuName, err)
+	}
+	coreAllocatedStr, err := allocated.GetString("core")
+	if err != nil {
+		log.Fatalf("Failed to get gpu %s's core allocated, %s.", gpuName, err)
+	}
+	memoryCapacityStr, err := capacity.GetString("memory")
+	if err != nil {
+		log.Fatalf("Failed to get gpu %s's memory capacity, %s.", gpuName, err)
+	}
+	memoryAllocatedStr, err := allocated.GetString("memory")
+	if err != nil {
+		log.Fatalf("Failed to get gpu %s's memory allocated, %s.", gpuName, err)
+	}
+
+	coreCapacity, _ := strconv.ParseInt(coreCapacityStr, 10, 64)
+	coreAllocated, _ := strconv.ParseInt(coreAllocatedStr, 10, 64)
+	memoryCapacity, _ := strconv.ParseInt(memoryCapacityStr, 10, 64)
+	memoryAllocated, _ := strconv.ParseInt(memoryAllocatedStr, 10, 64)
 
 	hasDevicePlugin := false
-	node, err := decider.Client.GetResource("Node", "", nodeName)
+	nodeBytes, err := decider.Client.GetResource("Node", "", nodeName)
 	if err != nil {
 		log.Fatalf("Failed to get GPU's node, %s.", err)
 	}
 
-	nodeStatus := node.GetObjectNode("status")
-	nodeCapacity := nodeStatus.GetObjectNode("capacity")
-	if val, ok := nodeCapacity.Object[ResourceCore]; ok {
-		nodeDeviceCapacity := val.(string)
-		if nodeDeviceCapacity != "0" {
+	node := kubesys.ToJsonObject(nodeBytes)
+
+	nodeStatus := node.GetJsonObject("status")
+	nodeCapacity := nodeStatus.GetJsonObject("capacity")
+	if nodeCapacity.HasKey(ResourceCore) {
+		val, _ := nodeCapacity.GetString(ResourceCore)
+		if val != "0" {
 			hasDevicePlugin = true
 		}
 	}
@@ -342,16 +414,20 @@ func (decider *Decider) addGpu(gpu *jsonutil.ObjectNode) {
 	log.Infof("GPU CRD %s, uuid %s added.", gpuName, gpuUuid)
 }
 
-func (decider *Decider) modifyNode(node *jsonutil.ObjectNode) {
-	meta := node.GetObjectNode("metadata")
-	nodeName := meta.GetString("name")
+func (decider *Decider) modifyNode(node *jsonObj.JsonObject) {
+	meta := node.GetJsonObject("metadata")
+	nodeName, err := meta.GetString("name")
+	if err != nil {
+		log.Fatalln("Failed to get node name.")
+	}
 
 	hasDevicePlugin := false
-	nodeStatus := node.GetObjectNode("status")
-	nodeCapacity := nodeStatus.GetObjectNode("capacity")
-	if val, ok := nodeCapacity.Object[ResourceCore]; ok {
-		nodeDeviceCapacity := val.(string)
-		if nodeDeviceCapacity != "0" {
+	nodeStatus := node.GetJsonObject("status")
+	nodeCapacity := nodeStatus.GetJsonObject("capacity")
+
+	if nodeCapacity.HasKey(ResourceCore) {
+		val, _ := nodeCapacity.GetString(ResourceCore)
+		if val != "0" {
 			hasDevicePlugin = true
 		}
 	}

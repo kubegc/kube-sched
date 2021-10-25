@@ -5,7 +5,8 @@
 package scheduler
 
 import (
-	jsonutil "github.com/kubesys/kubernetes-client-go/pkg/util"
+	"encoding/json"
+	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
 	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 	"sync"
 )
@@ -22,8 +23,9 @@ func NewPodManager(queueOfAdded, queueOfDeleted *util.LinkedQueue) *PodManager {
 }
 
 func (podMgr *PodManager) DoAdded(obj map[string]interface{}) {
+	bytes, _ := json.Marshal(obj)
 	podMgr.muOfAdd.Lock()
-	podMgr.queueOfAdded.Add(jsonutil.NewObjectNodeWithValue(obj))
+	podMgr.queueOfAdded.Add(kubesys.ToJsonObject(bytes))
 	podMgr.muOfAdd.Unlock()
 }
 
@@ -31,7 +33,8 @@ func (podMgr *PodManager) DoModified(obj map[string]interface{}) {
 }
 
 func (podMgr *PodManager) DoDeleted(obj map[string]interface{}) {
+	bytes, _ := json.Marshal(obj)
 	podMgr.muOfDelete.Lock()
-	podMgr.queueOfDeleted.Add(jsonutil.NewObjectNodeWithValue(obj))
+	podMgr.queueOfDeleted.Add(kubesys.ToJsonObject(bytes))
 	podMgr.muOfDelete.Unlock()
 }

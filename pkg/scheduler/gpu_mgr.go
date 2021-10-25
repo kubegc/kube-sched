@@ -5,7 +5,8 @@
 package scheduler
 
 import (
-	jsonutil "github.com/kubesys/kubernetes-client-go/pkg/util"
+	"encoding/json"
+	"github.com/kubesys/kubernetes-client-go/pkg/kubesys"
 	"github.com/kubesys/kubernetes-scheduler/pkg/util"
 	"sync"
 )
@@ -14,10 +15,10 @@ type GpuResource struct {
 	gpuName         string
 	uuid            string
 	node            string
-	coreCapacity    int
-	coreAllocated   int
-	memoryCapacity  int
-	memoryAllocated int
+	coreCapacity    int64
+	coreAllocated   int64
+	memoryCapacity  int64
+	memoryAllocated int64
 }
 
 type NodeResource struct {
@@ -36,8 +37,9 @@ func NewGpuManager(queue *util.LinkedQueue) *GpuManager {
 }
 
 func (gpuMgr *GpuManager) DoAdded(obj map[string]interface{}) {
+	bytes, _ := json.Marshal(obj)
 	gpuMgr.mu.Lock()
-	gpuMgr.queue.Add(jsonutil.NewObjectNodeWithValue(obj))
+	gpuMgr.queue.Add(kubesys.ToJsonObject(bytes))
 	gpuMgr.mu.Unlock()
 }
 
