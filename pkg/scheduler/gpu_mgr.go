@@ -12,19 +12,19 @@ import (
 )
 
 type GpuResource struct {
-	gpuName         string
-	uuid            string
-	node            string
-	coreCapacity    int64
-	coreAllocated   int64
-	memoryCapacity  int64
-	memoryAllocated int64
+	GpuName         string
+	Uuid            string
+	Node            string
+	CoreCapacity    int64
+	CoreAllocated   int64
+	MemoryCapacity  int64
+	MemoryAllocated int64
 }
 
 type NodeResource struct {
-	nodeName        string
-	hasDevicePlugin bool
-	gpusByUuid      map[string]*GpuResource
+	NodeName        string
+	HasDevicePlugin bool
+	GpusByUuid      map[string]*GpuResource
 }
 
 type GpuManager struct {

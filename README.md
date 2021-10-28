@@ -11,7 +11,7 @@ make
 
 ### Make kube-sched docker image
 ```
-docker build -t registry.cn-beijing.aliyuncs.com/doslab/kube-sched:v0.3.1-amd64 .
+docker build -t registry.cn-beijing.aliyuncs.com/doslab/kube-sched:v0.3.2-amd64 .
 ```
 
 ### Run kube-sched Pod

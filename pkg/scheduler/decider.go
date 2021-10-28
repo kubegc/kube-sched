@@ -131,8 +131,8 @@ func (decider *Decider) addPod(pod *jsonObj.JsonObject) {
 
 	var availableNode []string
 	for _, v := range decider.resourceOnNode {
-		if v.hasDevicePlugin {
-			availableNode = append(availableNode, v.nodeName)
+		if v.HasDevicePlugin {
+			availableNode = append(availableNode, v.NodeName)
 		}
 	}
 	// TODO: Filter more unavailable nodes.
@@ -194,8 +194,8 @@ func (decider *Decider) addPod(pod *jsonObj.JsonObject) {
 	}
 
 	// Update resource and GPU CRD
-	decider.resourceOnNode[result.NodeName].gpusByUuid[result.GpuUuid[0]].memoryAllocated += requestMemory
-	decider.resourceOnNode[result.NodeName].gpusByUuid[result.GpuUuid[0]].coreAllocated += requestCore
+	decider.resourceOnNode[result.NodeName].GpusByUuid[result.GpuUuid[0]].MemoryAllocated += requestMemory
+	decider.resourceOnNode[result.NodeName].GpusByUuid[result.GpuUuid[0]].CoreAllocated += requestCore
 
 	gpuName := decider.gpuUuidToName[result.GpuUuid[0]]
 	gpuBytes, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
@@ -288,8 +288,8 @@ func (decider *Decider) deletePod(pod *jsonObj.JsonObject) {
 	defer decider.mu.Unlock()
 
 	// Update resource and GPU CRD
-	decider.resourceOnNode[nodeName].gpusByUuid[gpuUuid].memoryAllocated -= requestMemory
-	decider.resourceOnNode[nodeName].gpusByUuid[gpuUuid].coreAllocated -= requestCore
+	decider.resourceOnNode[nodeName].GpusByUuid[gpuUuid].MemoryAllocated -= requestMemory
+	decider.resourceOnNode[nodeName].GpusByUuid[gpuUuid].CoreAllocated -= requestCore
 
 	gpuName := decider.gpuUuidToName[gpuUuid]
 	gpuBytes, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
@@ -393,21 +393,21 @@ func (decider *Decider) addGpu(gpu *jsonObj.JsonObject) {
 	decider.gpuUuidToName[gpuUuid] = gpuName
 
 	gpuResource := &GpuResource{
-		gpuName:         gpuName,
-		uuid:            gpuUuid,
-		node:            nodeName,
-		coreCapacity:    coreCapacity,
-		coreAllocated:   coreAllocated,
-		memoryCapacity:  memoryCapacity,
-		memoryAllocated: memoryAllocated,
+		GpuName:         gpuName,
+		Uuid:            gpuUuid,
+		Node:            nodeName,
+		CoreCapacity:    coreCapacity,
+		CoreAllocated:   coreAllocated,
+		MemoryCapacity:  memoryCapacity,
+		MemoryAllocated: memoryAllocated,
 	}
 	if _, ok := decider.resourceOnNode[nodeName]; ok {
-		decider.resourceOnNode[nodeName].gpusByUuid[gpuUuid] = gpuResource
+		decider.resourceOnNode[nodeName].GpusByUuid[gpuUuid] = gpuResource
 	} else {
 		decider.resourceOnNode[nodeName] = &NodeResource{
-			nodeName:        nodeName,
-			hasDevicePlugin: hasDevicePlugin,
-			gpusByUuid:      map[string]*GpuResource{gpuUuid: gpuResource},
+			NodeName:        nodeName,
+			HasDevicePlugin: hasDevicePlugin,
+			GpusByUuid:      map[string]*GpuResource{gpuUuid: gpuResource},
 		}
 	}
 
@@ -435,12 +435,12 @@ func (decider *Decider) modifyNode(node *jsonObj.JsonObject) {
 	decider.mu.Lock()
 	defer decider.mu.Unlock()
 
-	if val, ok := decider.resourceOnNode[nodeName]; !ok || val.hasDevicePlugin == hasDevicePlugin {
+	if val, ok := decider.resourceOnNode[nodeName]; !ok || val.HasDevicePlugin == hasDevicePlugin {
 		return
 	}
 
 	// Update resource
-	decider.resourceOnNode[nodeName].hasDevicePlugin = hasDevicePlugin
+	decider.resourceOnNode[nodeName].HasDevicePlugin = hasDevicePlugin
 	if hasDevicePlugin {
 		log.Infof("Node %s now runs device plugin.", nodeName)
 	} else {
