@@ -26,6 +26,7 @@ func (alg *MockSingleGPU) Schedule(requestMemory, requestCore int64, availableNo
 				if gpu.MemoryCapacity-gpu.MemoryAllocated > res {
 					gpuUuid = id
 					nodeName = node
+					res = gpu.MemoryCapacity-gpu.MemoryAllocated
 				}
 			}
 		}
