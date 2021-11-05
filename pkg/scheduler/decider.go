@@ -200,7 +200,7 @@ func (decider *Decider) addPod(pod *jsonObj.JsonObject) {
 	gpuName := decider.gpuUuidToName[result.GpuUuid[0]]
 	gpuBytes, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
 	if err != nil {
-		log.Fatalf("Failed to get GPU CRD, %s.", err)
+		log.Warningf("Failed to get GPU CRD, %s.", err)
 	}
 	gpu := kubesys.ToJsonObject(gpuBytes)
 	status := gpu.GetJsonObject("status")
@@ -208,11 +208,11 @@ func (decider *Decider) addPod(pod *jsonObj.JsonObject) {
 
 	oldMemoryStr, err := allocated.GetString("memory")
 	if err != nil {
-		log.Fatalf("Failed to get old memory, %s.", err)
+		log.Warningf("Failed to get old memory, %s.", err)
 	}
 	oldCoreStr, err := allocated.GetString("core")
 	if err != nil {
-		log.Fatalf("Failed to get old core, %s.", err)
+		log.Warningf("Failed to get old core, %s.", err)
 	}
 
 	oldMemory, _ := strconv.ParseInt(oldMemoryStr, 10, 64)
@@ -226,7 +226,7 @@ func (decider *Decider) addPod(pod *jsonObj.JsonObject) {
 
 	_, err = decider.Client.UpdateResource(gpu.ToString())
 	if err != nil {
-		log.Fatalf("Failed to update GPU CRD, %s.", err)
+		log.Warningf("Failed to update GPU CRD, %s.", err)
 	}
 
 	log.Infof("Pod %s on namespace %s will run on node %s with %d gpu(s).", podName, namespace, result.NodeName, len(result.GpuUuid))
@@ -294,7 +294,7 @@ func (decider *Decider) deletePod(pod *jsonObj.JsonObject) {
 	gpuName := decider.gpuUuidToName[gpuUuid]
 	gpuBytes, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
 	if err != nil {
-		log.Fatalf("Failed to get GPU CRD, %s.", err)
+		log.Warningf("Failed to get GPU CRD, %s.", err)
 	}
 
 	gpu := kubesys.ToJsonObject(gpuBytes)
@@ -303,11 +303,11 @@ func (decider *Decider) deletePod(pod *jsonObj.JsonObject) {
 
 	oldMemoryStr, err := allocated.GetString("memory")
 	if err != nil {
-		log.Fatalf("Failed to get old memory, %s.", err)
+		log.Warningf("Failed to get old memory, %s.", err)
 	}
 	oldCoreStr, err := allocated.GetString("core")
 	if err != nil {
-		log.Fatalf("Failed to get old core, %s.", err)
+		log.Warningf("Failed to get old core, %s.", err)
 	}
 
 	oldMemory, _ := strconv.ParseInt(oldMemoryStr, 10, 64)
@@ -321,7 +321,7 @@ func (decider *Decider) deletePod(pod *jsonObj.JsonObject) {
 
 	_, err = decider.Client.UpdateResource(gpu.ToString())
 	if err != nil {
-		log.Fatalf("Failed to update GPU CRD, %s.", err)
+		log.Warningf("Failed to update GPU CRD, %s.", err)
 	}
 
 	log.Infof("Pod %s on namespace %s is deleled on node %s.", podName, namespace, nodeName)
