@@ -32,7 +32,7 @@ func main() {
 	podMgr := scheduler.NewPodManager(util.NewLinkedQueue(), util.NewLinkedQueue())
 	gpuMgr := scheduler.NewGpuManager(util.NewLinkedQueue())
 	nodeMgr := scheduler.NewNodeManager(util.NewLinkedQueue())
-	algorithm := alg.NewForFlyingFish()
+	algorithm := alg.NewMockSingleGPU()
 
 	decider := scheduler.NewDecider(client, podMgr, gpuMgr, nodeMgr, algorithm)
 	decider.Listen(podMgr, gpuMgr, nodeMgr)

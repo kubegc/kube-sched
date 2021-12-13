@@ -95,11 +95,13 @@ func (decider *Decider) addPod(pod *jsonObj.JsonObject) {
 	meta := pod.GetJsonObject("metadata")
 	podName, err := meta.GetString("name")
 	if err != nil {
-		log.Fatalln("Failed to get pod name.")
+		log.Errorf("Failed to get pod name, %s.", err)
+		return
 	}
 	namespace, err := meta.GetString("namespace")
 	if err != nil {
-		log.Fatalln("Failed to get pod namespace.")
+		log.Errorf("Failed to get pod namespace, %s.", err)
+		return
 	}
 
 	requestMemory, requestCore := int64(0), int64(0)
@@ -120,7 +122,7 @@ func (decider *Decider) addPod(pod *jsonObj.JsonObject) {
 		}
 		if val, err := limits.GetString(ResourceCore); err == nil {
 			m, _ := strconv.ParseInt(val, 10, 64)
-			requestCore += int64(m)
+			requestCore += m
 		}
 	}
 
@@ -200,33 +202,23 @@ func (decider *Decider) addPod(pod *jsonObj.JsonObject) {
 	gpuName := decider.gpuUuidToName[result.GpuUuid[0]]
 	gpuBytes, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
 	if err != nil {
-		log.Warningf("Failed to get GPU CRD, %s.", err)
+		log.Errorf("Failed to get GPU CRD, %s.", err)
+		return
 	}
 	gpu := kubesys.ToJsonObject(gpuBytes)
 	status := gpu.GetJsonObject("status")
 	allocated := status.GetJsonObject("allocated")
 
-	oldMemoryStr, err := allocated.GetString("memory")
-	if err != nil {
-		log.Warningf("Failed to get old memory, %s.", err)
-	}
-	oldCoreStr, err := allocated.GetString("core")
-	if err != nil {
-		log.Warningf("Failed to get old core, %s.", err)
-	}
-
-	oldMemory, _ := strconv.ParseInt(oldMemoryStr, 10, 64)
-	oldCore, _ := strconv.ParseInt(oldCoreStr, 10, 64)
-
-	allocated.Put("memory", strconv.FormatInt(oldMemory + requestMemory, 10))
-	allocated.Put("core", strconv.FormatInt(oldCore + requestCore, 10))
+	allocated.Put("memory", strconv.FormatInt(decider.resourceOnNode[result.NodeName].GpusByUuid[result.GpuUuid[0]].MemoryAllocated, 10))
+	allocated.Put("core", strconv.FormatInt(decider.resourceOnNode[result.NodeName].GpusByUuid[result.GpuUuid[0]].CoreAllocated, 10))
 
 	status.Put("allocated", allocated.ToInterface())
 	gpu.Put("status", status.ToInterface())
 
 	_, err = decider.Client.UpdateResource(gpu.ToString())
 	if err != nil {
-		log.Warningf("Failed to update GPU CRD, %s.", err)
+		log.Errorf("Failed to update GPU CRD, %s.", err)
+		return
 	}
 
 	log.Infof("Pod %s on namespace %s will run on node %s with %d gpu(s).", podName, namespace, result.NodeName, len(result.GpuUuid))
@@ -247,17 +239,20 @@ func (decider *Decider) deletePod(pod *jsonObj.JsonObject) {
 	meta := pod.GetJsonObject("metadata")
 	podName, err := meta.GetString("name")
 	if err != nil {
-		log.Fatalln("Failed to get pod name.")
+		log.Errorf("Failed to get pod name, %s.", err)
+		return
 	}
 	namespace, err := meta.GetString("namespace")
 	if err != nil {
-		log.Fatalln("Failed to get pod namespace.")
+		log.Errorf("Failed to get pod namespace, %s.", err)
+		return
 	}
 
 	annotations := meta.GetJsonObject("annotations")
 	gpuUuid, err := annotations.GetString(ResourceUUID)
 	if err != nil {
-		log.Fatalf("Failed to get gpu uuid for pod %s on ns %s, %s.", podName, namespace, err)
+		log.Errorf("Failed to get gpu uuid for pod %s on ns %s, %s.", podName, namespace, err)
+		return
 	}
 
 	requestMemory, requestCore := int64(0), int64(0)
@@ -294,34 +289,24 @@ func (decider *Decider) deletePod(pod *jsonObj.JsonObject) {
 	gpuName := decider.gpuUuidToName[gpuUuid]
 	gpuBytes, err := decider.Client.GetResource("GPU", GPUNamespace, gpuName)
 	if err != nil {
-		log.Warningf("Failed to get GPU CRD, %s.", err)
+		log.Errorf("Failed to get GPU CRD, %s.", err)
+		return
 	}
 
 	gpu := kubesys.ToJsonObject(gpuBytes)
 	status := gpu.GetJsonObject("status")
 	allocated := status.GetJsonObject("allocated")
 
-	oldMemoryStr, err := allocated.GetString("memory")
-	if err != nil {
-		log.Warningf("Failed to get old memory, %s.", err)
-	}
-	oldCoreStr, err := allocated.GetString("core")
-	if err != nil {
-		log.Warningf("Failed to get old core, %s.", err)
-	}
-
-	oldMemory, _ := strconv.ParseInt(oldMemoryStr, 10, 64)
-	oldCore, _ := strconv.ParseInt(oldCoreStr, 10, 64)
-
-	allocated.Put("memory", strconv.FormatInt(oldMemory - requestMemory, 10))
-	allocated.Put("core", strconv.FormatInt(oldCore - requestCore, 10))
+	allocated.Put("memory", strconv.FormatInt(decider.resourceOnNode[nodeName].GpusByUuid[gpuUuid].MemoryAllocated, 10))
+	allocated.Put("core", strconv.FormatInt(decider.resourceOnNode[nodeName].GpusByUuid[gpuUuid].CoreAllocated, 10))
 
 	status.Put("allocated", allocated.ToInterface())
 	gpu.Put("status", status.ToInterface())
 
 	_, err = decider.Client.UpdateResource(gpu.ToString())
 	if err != nil {
-		log.Warningf("Failed to update GPU CRD, %s.", err)
+		log.Errorf("Failed to update GPU CRD, %s.", err)
+		return
 	}
 
 	log.Infof("Pod %s on namespace %s is deleled on node %s.", podName, namespace, nodeName)
